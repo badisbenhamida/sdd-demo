@@ -1,0 +1,32 @@
+# spec-drift.yml — traceability gate (GitHub Actions)
+# Runs on every PR targeting main and on merges to main.
+# ENFORCEMENT: pair with branch protection (or a ruleset) on main that
+# marks the "gates" job as a REQUIRED status check — that is what
+# disables the merge button on red, exactly like ADO Build Validation.
+
+name: spec-drift
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: "Gate 1 — spec ⇄ test traceability"
+        run: python scripts/spec_drift.py
+
+      - name: "Gate 2 — acceptance tests"
+        run: python -m pytest tests/ -q
