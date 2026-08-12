@@ -43,6 +43,10 @@ git checkout -B demo-live && git push -u origin demo-live --force
 git status --short             # MUST be empty — untracked ghosts here get
                                # silently adopted by the scaffolding commit
 gh issue list --label story    # close leftovers from the previous run
+                               # (lists OPEN only — those are the ones that
+                               # matter; a leftover open issue gets adopted
+                               # and closed by the NEXT run's evidence.
+                               # Closed issues from earlier runs are inert.)
 ```
 Full model, rules, and the demo-start rebuild ritual: docs/BRANCHING.md.
 Rule that matters most: any PR changing scripts/, workflows, CLAUDE.md,
@@ -159,7 +163,11 @@ Give the generated `contracts/` ten seconds of screen time.
 ```bash
 .venv/bin/python scripts/gh_sync.py --apply
 ```
-Open an issue in the browser:
+Open one of the issues **just created** — the highest numbers. Story
+titles repeat every run (`--apply` does not deduplicate), so after a
+few runs the tracker holds several `S1 — …` issues that differ only by
+number. Closed issues from earlier runs stay closed and are inert:
+`--update` queries open issues only, so they are never rewritten.
 > "'Implements: <IDs>' in the body, tasks as a checklist. One-way by
 > design: requirement changes are PRs, not issue edits."
 
@@ -230,8 +238,15 @@ Then close the loop mechanically:
 git checkout main && git pull
 .venv/bin/python scripts/gh_sync.py --update
 ```
-Open a story issue: evidence comment (criteria, tests, commits),
-issue closed because coverage is complete.
+Open a story issue **from this run** (again, the highest numbers —
+earlier runs' issues are closed with the same titles): evidence comment
+(criteria, tests, commits), issue closed because coverage is complete.
+
+The commit list may include commits from earlier merged runs. Criterion
+IDs are stable across runs and `--update` reads the whole git log, so a
+prior run's `feat: … (GRT-00N)` is genuine evidence for the same
+criterion. If asked, that is the honest answer — it does not affect
+closing, which is driven by annotated tests, not commits.
 > "The tracker just caught up with reality — evidence flowed from git
 > to the issues, never the reverse."
 
