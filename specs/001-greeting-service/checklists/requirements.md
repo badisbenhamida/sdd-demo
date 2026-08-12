@@ -2,6 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-08-12
+**Last validated**: 2026-08-12 (after Ambiguity Log resolution)
 **Feature**: [spec.md](../spec.md)
 **Source BRD**: BRD-2026-014
 
@@ -15,8 +16,8 @@
 ## Requirement Completeness
 
 - [x] No [NEEDS CLARIFICATION] markers remain
-- [ ] Requirements are testable and unambiguous
-- [ ] Success criteria are measurable
+- [x] Requirements are testable and unambiguous
+- [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
 - [x] All acceptance scenarios are defined
 - [x] Edge cases are identified
@@ -25,34 +26,45 @@
 
 ## Feature Readiness
 
-- [ ] All functional requirements have clear acceptance criteria
+- [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
-- [ ] Feature meets measurable outcomes defined in Success Criteria
+- [x] Feature meets measurable outcomes defined in Success Criteria
 - [x] No implementation details leak into specification
 
 ## Notes
 
-**Four items are intentionally left unchecked. They cannot be checked without a human
-decision, and checking them by inventing answers is what this process exists to prevent.**
+**All items pass as of 2026-08-12.** The four previously-blocked items cleared when the
+Ambiguity Log was resolved:
 
-- *Requirements are testable and unambiguous* — GRT-001, GRT-002, GRT-003 and GRT-005 are
-  testable as written. GRT-004 is not: its pass condition depends on whether unsupported
-  languages fall back or error (**AMB-002**), and on whether the behaviour is mandatory at
-  all (**AMB-007**).
-- *Success criteria are measurable* — SC-001..SC-003 are verifiable. SC-004 inherits
-  AMB-002. The BRD states no quantitative targets at all (**AMB-006**); none were invented.
-- *All functional requirements have clear acceptance criteria* — blocked on the same
-  AMB-002/AMB-007 pair, plus GRT-006..GRT-009 which are reserved IDs with no requirement
-  text until AMB-001/003/005/009 are resolved.
-- *Feature meets measurable outcomes* — cannot be asserted while SC-004 is open.
+- *Testable and unambiguous* — GRT-004 now has a concrete pass condition
+  (`UNSUPPORTED_LANGUAGE` error, no greeting) following AMB-002/AMB-007. GRT-006, GRT-007
+  and GRT-008 activated from reserved IDs with concrete conditions of their own.
+- *Success criteria measurable* — SC-004 now states a detectable outcome. AMB-006 resolved
+  as "no numeric targets", so the absence of latency/availability figures is a recorded
+  decision rather than an omission.
+- *All requirements have acceptance criteria* — 8 active criteria, all Confirmed.
+- *Measurable outcomes* — follows from SC-004.
 
-**On [NEEDS CLARIFICATION] markers**: none are used. The standard Spec Kit flow caps
-clarifications at 3 and fills the rest with informed guesses. That conflicts with
-constitution Article III.1 (G1 requires resolution of *every* Ambiguity Log item) and with
-the explicit instruction not to invent requirements the BRD does not imply. All 9 gaps are
-therefore recorded in the spec's **Ambiguity Log** with proposed resolutions marked
-🔶 PENDING HUMAN APPROVAL — visible to the approver rather than silently defaulted.
+**Error-code names in criteria**: `UNSUPPORTED_LANGUAGE` and `MISSING_LANGUAGE` are
+interface-contract vocabulary the business chose to distinguish (AMB-009), not
+implementation detail. They are what a calling application observes.
 
-**Gate status**: 🔶 **G1 NOT MET.** This spec is a draft (constitution Article IV.2).
-Resolve all 9 Ambiguity Log items with the business, fold the decisions into the criteria
-table, then re-run this checklist before `/speckit-plan`.
+**On [NEEDS CLARIFICATION] markers**: none were used. Standard Spec Kit caps them at 3 and
+fills the rest with informed guesses; that conflicts with constitution Article III.1,
+which requires *every* gap resolved by a human. All 9 went to the Ambiguity Log instead
+and were decided individually. Two decisions reversed my proposals (AMB-002 fallback →
+error; AMB-009 shared → distinct error code), which is the reason the log exists.
+
+## Gate status
+
+🔶 **G1 not yet signed off.** The blocking condition — resolution of every Ambiguity Log
+item — is met, but constitution Article III.1 also requires explicit PO/BA approval of the
+spec itself. Two points to confirm with the sponsor at sign-off:
+
+1. **AMB-003** — the launch language set (en, fr, de, es, ja) was supplied by the
+   approver, not derived from BRD-2026-014, which names no languages.
+2. **AMB-002** — choosing errors over fallback means every regional application must
+   handle `UNSUPPORTED_LANGUAGE`; an app that handles it poorly shows no greeting at all.
+
+`spec_drift.py` reports 0/8 covered. That is expected until implementation adds tests
+declaring `Implements: GRT-###`, and is not a spec defect.
