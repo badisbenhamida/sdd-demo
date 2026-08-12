@@ -17,6 +17,24 @@ app = FastAPI(title="Global Greeting Service")
 CATALOGUE = load_catalogue()
 
 
+@app.get("/health")
+def get_health():
+    """Report whether the service can actually serve greetings.
+
+    Implements: GRT-005 — "running" and "able to serve" are different states.
+    Startup already aborts on an unusable catalogue (decision D3), so this
+    re-asserts the same invariant at request time and keeps the unhealthy
+    state reachable rather than theoretical.
+
+    503 is not fixed by the spec, which defines only the healthy response; it
+    is the same kind of presentation choice as decision D2.
+    """
+    if not CATALOGUE:
+        return JSONResponse(status_code=503, content={"status": "unhealthy"})
+
+    return {"status": "healthy"}
+
+
 @app.get("/greeting")
 def get_greeting(language: str | None = None):
     """Return a greeting in the requested language.
