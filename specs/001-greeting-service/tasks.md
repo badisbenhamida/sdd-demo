@@ -1,10 +1,17 @@
 # Tasks: Global Greeting Service
 
 **Feature**: `specs/001-greeting-service` | **Date**: 2026-08-12
-**Spec**: [spec.md](./spec.md) — APPROVED, G1 met | **Plan**: [plan.md](./plan.md) — G2 pending
+**Spec**: [spec.md](./spec.md) — APPROVED, G1 met | **Plan**: [plan.md](./plan.md) — APPROVED, G2 met
 
-**Status**: 🔶 **DRAFT — G2 PENDING.** Agent-generated artifact per constitution
-Article IV.2. Requires tech-lead approval together with plan.md before implementation.
+**Status**: ✅ **APPROVED — G2 met**
+
+**Approved by**: Badis Ben Hamida <badis@ben-hamida.com> on 2026-08-12 (tech lead,
+constitution Article III.2), together with [plan.md](./plan.md).
+
+> No longer a draft. The four stories and 18 tasks below are approved for implementation
+> and are the basis for GitHub Issues. Creating those issues still requires a `gh_sync.py`
+> dry run reviewed by a human before `--apply` (Article III.4) — G2 approval does not
+> authorise writing to the tracker.
 
 > **This file is parsed by `scripts/gh_sync.py`.** Stories become GitHub Issues; tasks
 > become checklist items in the issue body. The parser is strict and silent on partial

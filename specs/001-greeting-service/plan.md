@@ -4,9 +4,17 @@
 
 **Input**: Feature specification from `specs/001-greeting-service/spec.md` (APPROVED, G1 met 2026-08-12)
 
-**Status**: 🔶 **DRAFT — G2 PENDING.** Agent-generated artifact, labelled draft per
-constitution Article IV.2. Requires tech-lead approval (Article III.2) before
-implementation begins.
+**Status**: ✅ **APPROVED — G2 met**
+
+**Approved by**: Badis Ben Hamida <badis@ben-hamida.com> on 2026-08-12 (tech lead,
+constitution Article III.2), together with [tasks.md](./tasks.md).
+
+> No longer a draft. Design decisions D1, D2 and D3 were flagged for review and approved
+> as written — including the D2 status mapping, which the reviewer was free to override in
+> favour of a platform convention. Implementation may begin.
+>
+> Also approved as-is: the environment skew noted below (`.venv` on Python 3.13.2 while
+> this plan and CI target 3.12).
 
 ## Summary
 
@@ -63,7 +71,7 @@ lookup (GRT-006). Greeting text has exactly one source (GRT-002, AMB-008).
 | II.2 | `spec-drift` required check passes | 🔶 Currently 0/8 covered — expected pre-implementation, must be green before merge |
 | II.3 | Commits reference criterion IDs | ✅ Practice established in this feature's history |
 | III.1 | G1 spec approval | ✅ Met 2026-08-12 |
-| III.2 | G2 plan approval | 🔶 **This document. Pending.** |
+| III.2 | G2 plan approval | ✅ Met 2026-08-12 (plan + tasks approved together) |
 | III.3 | G3 human merge, agents never merge | ✅ No merge performed or planned by agent |
 | IV.1 | Agents cite criterion IDs | ✅ Throughout this plan and its artifacts |
 | IV.2 | Agent artifacts labelled draft until approved | ✅ Header marks this DRAFT |
