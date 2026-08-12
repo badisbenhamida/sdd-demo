@@ -21,14 +21,35 @@ pip install -r requirements.txt
 python -m pytest tests/ -q          # 6 passed
 python scripts/spec_drift.py        # PASS: spec and tests agree
 python scripts/gh_sync.py           # DRY RUN of the issue batch
+```
+
+Optional verification — the tests already exercise the service in-process;
+this only proves it binds a real port:
+```bash
 uvicorn src.greeting_service.app:app --reload   # then GET /greet?locale=fr-FR
 ```
 
 ## 2. GitHub — repo, workflow, and the enforcement chain (in this order)
 
-1. Create the repo and push:
+1. Make the directory a repo, then publish it. `--source=.` publishes an
+   existing local repo (it does not scaffold a new one), so the commit and
+   branch rename must come first:
    ```bash
+   git init
+   git add -A && git commit -m "SDD demo: finished reference state"
+   git branch -M main
    gh repo create sdd-demo --private --source=. --push
+   ```
+   Then lay down the branch geography from `docs/BRANCHING.md` — `reference`
+   as the answer key, `demo-start` as the frozen starting line:
+   ```bash
+   git checkout -b reference && git push -u origin reference
+   git checkout main
+   git checkout -B demo-start
+   git rm -r specs src tests config 2>/dev/null; git rm -r .specify .claude 2>/dev/null
+   git commit -m "demo: reset point rebuilt from main @ $(git rev-parse --short main)"
+   git push -u origin demo-start
+   git checkout main
    ```
 2. Create the label the sync uses:
    ```bash
