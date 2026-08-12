@@ -40,6 +40,8 @@ Reset ritual before every run:
 ```bash
 git checkout demo-start && git pull
 git checkout -B demo-live && git push -u origin demo-live --force
+git status --short             # MUST be empty — untracked ghosts here get
+                               # silently adopted by the scaffolding commit
 gh issue list --label story    # close leftovers from the previous run
 ```
 Full model, rules, and the demo-start rebuild ritual: docs/BRANCHING.md.
@@ -98,13 +100,17 @@ marked PENDING HUMAN APPROVAL. Do not invent requirements the BRD
 doesn't imply. Commit when done: "spec: draft from BRD-2026-014,
 pending G1".
 ```
-Expect ~5 ambiguities (typical shape: unsupported-locale handling,
-launch locale set, interface/auth, meaning of monitorable, response
-format) and bonus artifacts (checklists/) — fine.
+Expect several ambiguities — runs have produced 5 to 9 from this same
+BRD; the count and decomposition legitimately vary per generation.
+Typical themes: unsupported-language handling, launch language set,
+interface/auth, meaning of monitorable, response format. Bonus
+artifacts (checklists/, contracts/) are normal.
 
 ### Act 4 — Gate G1 (4 min)
-Read the ACTUAL log on screen, then resolve every line (template —
-adjust to what was generated):
+Read the ACTUAL log on screen and rule on every line it contains — the
+generated log governs, not this script. The block below is an EXAMPLE
+of ruling style from a prior run; adapt items, add rulings for
+anything new, drop items that didn't appear:
 ```
 As the Product Owner I'm resolving the ambiguity log in full:
 - unsupported locale → explicit HTTP 400, machine-readable code
@@ -126,8 +132,9 @@ Verify: `grep -i pending specs/**/spec.md` → empty.
 
 ### Act 5 — Plan and tasks, Gate G2 (5 min)
 ```
-/speckit.plan Python 3.12, FastAPI, pytest. Locale templates load
-exclusively from config/locales.yml. No database. Commit when done:
+/speckit.plan Python 3.12, FastAPI, pytest. Locale templates shall
+load exclusively from config/locales.yml (file is created at
+implementation time — it does not exist yet). No database. Commit when done:
 "plan: G2 pending".
 ```
 ```
@@ -153,56 +160,68 @@ Give the generated `contracts/` ten seconds of screen time.
 .venv/bin/python scripts/gh_sync.py --apply
 ```
 Open an issue in the browser:
-> "'Implements: GRT-003' in the body, tasks as a checklist. One-way by
+> "'Implements: <IDs>' in the body, tasks as a checklist. One-way by
 > design: requirement changes are PRs, not issue edits."
 
 ### Act 7 — Implementation (12 min)
 
 **7a — one criterion, anatomy visible (4 min):**
+
+Do NOT hardcode an ID — each run's spec assigns IDs differently.
+Reference the behavior and let the agent read the contract:
 ```
-Implement the task covering GRT-003 (unsupported locale → HTTP 400 with
-error code UNSUPPORTED_LOCALE and the supported-locale list). Reference
-the criterion, not the task number. Acceptance test first, annotated
-"# Implements: GRT-003". Run the definition-of-done gates, then commit:
-"feat: reject unsupported locales (GRT-003)".
+Implement the criterion covering unsupported-language rejection. Read
+its ID, status code, and error shape from the APPROVED SPEC — the spec
+is authoritative, not this prompt. Acceptance test first, annotated
+"# Implements: <that ID>". Run the definition-of-done gates, then
+commit "feat: <behavior> (<ID>)".
 ```
-The drift gate shows **red — 1/6 covered**. Narrate, don't flinch:
+The drift gate shows **red — 1/N covered** (N = this run's criterion
+count). Narrate, don't flinch:
 > "Red isn't failure — it's a live burndown of spec coverage."
 
 **7b — the rest, batch speed (6 min):**
 ```
-/speckit.implement Complete all remaining tasks. The GRT-003 task and
-the foundation it created are done — skip them rather than redoing
-them. Per CLAUDE.md: test first with Implements annotations, venv
+/speckit.implement Complete all remaining tasks. The criterion
+implemented in 7a and the foundation it created are done — skip them
+rather than redoing them. Per CLAUDE.md: test first with Implements annotations, venv
 python only, definition-of-done gates per task, commit per task with
 the criterion ID, stop and ask if anything requires deviating from the
 approved spec.
 ```
-Watch the uncovered list burn down; end on **6/6 PASS**.
+Watch the uncovered list burn down; end on **N/N PASS**.
 
 **7c — break it on purpose (2 min):**
+
+Check the spec for the next unused ID first (with N criteria, it's
+GRT-<N+1 padded>):
 ```
-Add criterion GRT-007 to the spec: WHEN more than 10 requests per
-second arrive from one client, the service shall return HTTP 429. Run
-the drift gate.
+Add a new criterion <NEXT-ID> to the spec: WHEN more than 10 requests
+per second arrive from one client, the service shall return HTTP 429.
+Run the drift gate.
 ```
-**Red**: GRT-007 uncovered.
+**Red**: the new criterion uncovered.
 > "The spec moved and the code didn't — caught by a machine, not a
 > retro. This exact check blocks every pull request."
 ```
-Implement GRT-007: test first, then the implementation, gates, commit
-"feat: per-client rate limiting (GRT-007)".
+Implement <NEXT-ID>: test first, then the implementation, gates, commit
+"feat: per-client rate limiting (<NEXT-ID>)".
 ```
 **Green.**
 
 ### Act 8 — The PR gate + the issues catch up (5 min)
 ```bash
 git push
-gh pr create --base main --title "Greeting service (GRT-001..007)" --fill
+gh pr create --base main --title "Demo run: greeting service" --fill
 ```
 On screen: the `gates` check runs automatically (that's the Part 0.4
 protection rule), "Required" badge visible, merge button disabled until
-green. Approve and merge as yourself.
+green. A red ✗ on a mid-history commit is normal (checks ran against an
+incomplete state); the verdict that governs is the check at HEAD.
+Approve and merge as yourself — **"Create a merge commit", never
+squash**: the per-act, per-criterion commit trail IS the deliverable,
+and gh_sync --update reads criterion IDs from individual commit
+messages (docs/BRANCHING.md rule 6).
 > "Gate G3. A named human owned every gate you've seen — and two of
 > the three are enforced by the platform, not by trust."
 
@@ -217,7 +236,7 @@ issue closed because coverage is complete.
 > to the issues, never the reverse."
 
 ### Act 9 — Close the loop (2 min)
-> "BR-3 in the business's own document → GRT-003 → an issue → commits →
+> "BR-3 in the business's own document → its criterion ID → an issue → commits →
 > passing tests → a green required check. 'Is BR-3 built and verified?'
 > is now machine-answerable. And every spec, ruling, and drift
 > correction accumulated in the repo — the corpus the next BRD's
