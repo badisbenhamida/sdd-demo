@@ -1,0 +1,16 @@
+# Sole source of greeting text and of the supported-language set.
+#
+# The key set IS the supported-language set (GRT-007) — nothing else declares
+# it, so the advertised languages and the available text cannot drift apart.
+#
+# Greeting text is fixed at build time (AMB-008): changing it requires a
+# release, and there is no runtime content management (BRD §3).
+#
+# Adding or removing a language changes GRT-007 and is therefore a spec
+# change, not just an edit to this file.
+
+en: "Hello"
+fr: "Bonjour"
+de: "Hallo"
+es: "Hola"
+ja: "こんにちは"
