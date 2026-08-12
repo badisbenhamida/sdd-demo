@@ -8,17 +8,26 @@
 
 **Ambiguities resolved**: 2026-08-12 (all 9 items — see Ambiguity Log)
 
-**Status**: Draft — ambiguities resolved, awaiting explicit G1 sign-off
+**Status**: ✅ **APPROVED — G1 met**
+
+**Approved by**: Badis Ben Hamida <badis@ben-hamida.com> on 2026-08-12
 
 **Source**: [BRD-2026-014](../../docs/brd/BRD-2026-014-greeting-service.md) — Global Greeting Service (approved by business 2026-07-28)
 
 **Input**: Transform BRD-2026-014 into an EARS specification with stable `GRT-###` criterion IDs, BRD traceability, and an Ambiguity Log.
 
-> **G1 status.** Every Ambiguity Log item now carries a human decision, which was the
-> blocking half of constitution Article III.1. The spec still needs an explicit approval
-> statement from the PO/BA before planning begins. Two decisions below were supplied by
-> the approver rather than derived from the BRD (AMB-003, and the AMB-002 reversal) and
-> should be confirmed with the sponsor at sign-off.
+> **G1 met** (constitution Article III.1): every Ambiguity Log item carries a human
+> decision, and the spec itself was approved on 2026-08-12. This document is no longer a
+> draft — it is **the contract**. Per CLAUDE.md it must not be modified without explicit
+> direction, and requirement changes arrive as BRD amendments via PR (Article I.3).
+>
+> **Recorded at sign-off**: two decisions were supplied by the approver rather than
+> derived from BRD-2026-014, and were approved with that understanding — the AMB-003
+> launch language set (the BRD names no languages), and the AMB-002 reversal from fallback
+> to an explicit error (which obliges every regional application to handle
+> `UNSUPPORTED_LANGUAGE`).
+>
+> Planning may now proceed. Note that G2 (plan approval, Article III.2) is a separate gate.
 
 ---
 

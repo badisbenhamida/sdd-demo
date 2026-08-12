@@ -57,14 +57,19 @@ error; AMB-009 shared → distinct error code), which is the reason the log exis
 
 ## Gate status
 
-🔶 **G1 not yet signed off.** The blocking condition — resolution of every Ambiguity Log
-item — is met, but constitution Article III.1 also requires explicit PO/BA approval of the
-spec itself. Two points to confirm with the sponsor at sign-off:
+✅ **G1 MET** — approved by Badis Ben Hamida <badis@ben-hamida.com> on 2026-08-12
+(constitution Article III.1). Both conditions satisfied: every Ambiguity Log item resolved
+by a human, and the spec itself explicitly approved.
+
+Approved with these two points on the record — flagged before sign-off, approved as-is:
 
 1. **AMB-003** — the launch language set (en, fr, de, es, ja) was supplied by the
    approver, not derived from BRD-2026-014, which names no languages.
 2. **AMB-002** — choosing errors over fallback means every regional application must
    handle `UNSUPPORTED_LANGUAGE`; an app that handles it poorly shows no greeting at all.
+
+The spec is now the contract and is no longer agent-modifiable without explicit direction
+(CLAUDE.md; constitution Article IV.3). G2 (plan approval) is the next gate.
 
 `spec_drift.py` reports 0/8 covered. That is expected until implementation adds tests
 declaring `Implements: GRT-###`, and is not a spec defect.
