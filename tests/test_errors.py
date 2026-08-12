@@ -1,13 +1,13 @@
 """Acceptance tests for the greeting service's error paths.
 
-Implements: GRT-004
+Implements: GRT-004, GRT-008
 """
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.greeting_service.app import app
-from src.greeting_service.errors import UNSUPPORTED_LANGUAGE
+from src.greeting_service.errors import MISSING_LANGUAGE, UNSUPPORTED_LANGUAGE
 
 
 @pytest.fixture(name="client")
@@ -49,3 +49,63 @@ def test_unsupported_language_leaks_no_fallback_text(client):
     response = client.get("/greeting", params={"language": "xx"})
 
     assert supported not in response.text
+
+
+# Implements: GRT-008
+def test_missing_language_returns_missing_language_error(client):
+    """GRT-008 — no language supplied is its own failure, not an unsupported one."""
+    response = client.get("/greeting")
+
+    assert response.status_code == 400
+    assert response.json()["code"] == MISSING_LANGUAGE
+
+
+# Implements: GRT-008
+def test_missing_language_is_not_a_framework_validation_error(client):
+    """GRT-008 — the service answers, not FastAPI.
+
+    This is decision D1 in plan.md. Declaring `language` as a required query
+    parameter is the natural way to write this endpoint, and it makes FastAPI
+    return its own 422 with a Pydantic body carrying no error code. That
+    implementation looks correct and breaches GRT-008. This test is what
+    catches it.
+    """
+    response = client.get("/greeting")
+
+    assert response.status_code != 422
+    assert "code" in response.json()
+
+
+# Implements: GRT-008
+def test_missing_language_returns_no_greeting(client):
+    response = client.get("/greeting")
+
+    assert "greeting" not in response.json()
+
+
+# Implements: GRT-004, GRT-008
+def test_the_two_error_codes_are_distinct(client):
+    """The whole content of AMB-009.
+
+    A miswired caller that forgot the parameter must be distinguishable from
+    genuine demand for a language the service does not carry — otherwise an
+    integration bug and a coverage gap look identical in the logs.
+    """
+    missing = client.get("/greeting").json()["code"]
+    unsupported = client.get("/greeting", params={"language": "xx"}).json()["code"]
+
+    assert missing != unsupported
+    assert {missing, unsupported} == {MISSING_LANGUAGE, UNSUPPORTED_LANGUAGE}
+
+
+# Implements: GRT-004, GRT-008
+def test_error_paths_are_distinguishable_by_status_too(client):
+    """Status codes differ as well, per plan.md decision D2.
+
+    Callers are told to branch on `code`, so this is a weaker guarantee than
+    the one above — but a caller reading only the status must not be misled.
+    """
+    missing = client.get("/greeting")
+    unsupported = client.get("/greeting", params={"language": "xx"})
+
+    assert missing.status_code != unsupported.status_code
