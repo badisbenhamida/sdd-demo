@@ -29,10 +29,23 @@ CLAUDE.md, or the constitution on main):**
 git checkout main && git pull
 git checkout -B demo-start
 git rm -r specs src tests config 2>/dev/null; git rm -r .specify .claude 2>/dev/null
+git rm conftest.py 2>/dev/null            # root-level process output
 git commit -m "demo: reset point rebuilt from main @ $(git rev-parse --short main)"
+
+# git rm leaves directories whose remaining contents are git-ignored, so
+# src/ and tests/ survive as empty shells full of bytecode, and deleting
+# .specify/.gitignore un-ignores .specify/feature.json into an untracked
+# ghost. Neither is visible to `git status` without --ignored.
+rm -rf specs src tests config .specify .pytest_cache
+find . -path ./.venv -prune -o -name __pycache__ -prune -exec rm -rf {} +
+
+git status --short                        # MUST be empty before pushing
 git push -f origin demo-start
 git checkout main
 ```
+Keep the strip list current: anything a run creates outside `specs/`,
+`src/`, `tests/` and `config/` — `conftest.py` was the first — has to be
+added here, or it silently becomes part of the next run's starting line.
 This rule is absolute, not judgment-based: a change to main that isn't
 propagated leaves the next demo running on stale tooling — the class of
 surprise this model exists to prevent.
