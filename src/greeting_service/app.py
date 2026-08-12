@@ -1,54 +1,66 @@
-"""Greeting Service — reference implementation.
+"""FastAPI application for the Global Greeting Service.
 
-Spec: specs/001-greeting-service/spec.md
-Every behavior below traces to a GRT criterion; see inline references.
+Spec: specs/001-greeting-service/spec.md (approved, G1)
+Contract: specs/001-greeting-service/contracts/greeting-api.md
 """
 
-from pathlib import Path
-
-import yaml
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "locales.yml"
+from .errors import MISSING_LANGUAGE, UNSUPPORTED_LANGUAGE, error_body
+from .locales import load_catalogue
 
-app = FastAPI(title="Greeting Service")
+app = FastAPI(title="Global Greeting Service")
 
-# Module-level state so /health can distinguish "not loaded" (GRT-005).
-_state: dict = {"loaded": False, "default": None, "greetings": {}}
-
-
-@app.on_event("startup")
-def load_locales() -> None:
-    # GRT-006: templates come exclusively from config/locales.yml.
-    raw = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
-    _state["default"] = raw["default_locale"]
-    _state["greetings"] = raw["greetings"]
-    _state["loaded"] = True
-
-
-@app.get("/greet")
-def greet(locale: str | None = Query(default=None)):
-    # GRT-004: no locale → default locale, HTTP 200.
-    effective = locale or _state["default"]
-
-    if effective not in _state["greetings"]:
-        # GRT-003: unsupported locale → 400 + machine-readable code.
-        return JSONResponse(
-            status_code=400,
-            content={
-                "error": "UNSUPPORTED_LOCALE",
-                "supported_locales": sorted(_state["greetings"]),
-            },
-        )
-
-    # GRT-001 / GRT-002: JSON shape {message, locale}, HTTP 200.
-    return {"message": _state["greetings"][effective], "locale": effective}
+# Loaded once at import. A failure here aborts startup rather than letting a
+# service with no greetings accept traffic (plan.md decision D3).
+CATALOGUE = load_catalogue()
 
 
 @app.get("/health")
-def health():
-    # GRT-005: 503 while config not loaded, 200 + counts afterwards.
-    if not _state["loaded"]:
-        return JSONResponse(status_code=503, content={"status": "loading"})
-    return {"status": "ok", "locales_loaded": len(_state["greetings"])}
+def get_health():
+    """Report whether the service can actually serve greetings.
+
+    Implements: GRT-005 — "running" and "able to serve" are different states.
+    Startup already aborts on an unusable catalogue (decision D3), so this
+    re-asserts the same invariant at request time and keeps the unhealthy
+    state reachable rather than theoretical.
+
+    503 is not fixed by the spec, which defines only the healthy response; it
+    is the same kind of presentation choice as decision D2.
+    """
+    if not CATALOGUE:
+        return JSONResponse(status_code=503, content={"status": "unhealthy"})
+
+    return {"status": "healthy"}
+
+
+@app.get("/greeting")
+def get_greeting(language: str | None = None):
+    """Return a greeting in the requested language.
+
+    `language` is declared optional so that this function — not FastAPI —
+    decides what a missing language means (plan.md decision D1). Declaring it
+    required would make the framework answer first with a 422 carrying no error
+    code, which would breach GRT-008 while looking correct.
+    """
+    if language is None:
+        return JSONResponse(
+            status_code=400,
+            content=error_body(
+                MISSING_LANGUAGE, "Query parameter 'language' is required"
+            ),
+        )
+
+    # Implements: GRT-004 — reject, never substitute. AMB-002 was resolved
+    # against a fallback so no user is silently served a language they did not
+    # ask for; the caller decides what to display.
+    if language not in CATALOGUE:
+        return JSONResponse(
+            status_code=404,
+            content=error_body(
+                UNSUPPORTED_LANGUAGE, f"Language '{language}' is not supported"
+            ),
+        )
+
+    return {"language": language, "greeting": CATALOGUE[language]}
