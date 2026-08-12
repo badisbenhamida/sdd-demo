@@ -48,3 +48,6 @@ surprise this model exists to prevent.
    show a replacement diff, not pure addition — acceptable by choice.)
 4. Ordinary development (tooling fixes, doc updates) uses normal
    short-lived branches off main through the PR gate, like any repo.
+5. GitHub will suggest a PR after every `demo-start` / `demo-live`
+   push — ignore it. Those branches never open a PR, with the single
+   exception of `demo-live` → `main` at the end of a run.
