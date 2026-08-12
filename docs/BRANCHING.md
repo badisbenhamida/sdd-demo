@@ -48,6 +48,12 @@ surprise this model exists to prevent.
    show a replacement diff, not pure addition — acceptable by choice.)
 4. Ordinary development (tooling fixes, doc updates) uses normal
    short-lived branches off main through the PR gate, like any repo.
-5. GitHub will suggest a PR after every `demo-start` / `demo-live`
-   push — ignore it. Those branches never open a PR, with the single
-   exception of `demo-live` → `main` at the end of a run.
+6. **Merge methods:** docs/tooling PRs → squash (one logical change,
+   one commit). Demo-run PRs (demo-live → main) → **merge commit** —
+   the per-criterion commit trail is the deliverable, and
+   gh_sync --update reads GRT IDs from individual commit messages;
+   squashing destroys both.
+7. **Clean-tree guard:** after the reset ritual and BEFORE
+   `specify init`, `git status --short` must be empty. Untracked
+   leftovers (e.g., from an archive extract) get silently adopted by
+   the scaffolding commit's `git add -A`.
