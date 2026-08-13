@@ -1,50 +1,102 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+==================
+Version change: (none — unfilled template) → 1.0.0
+Rationale: MAJOR/initial. First concrete ratification of this file; the
+prior contents were the unpopulated Spec Kit scaffold with zero defined
+principles. This is a verbatim mirror of the human-authored source at
+memory/constitution.md.
+
+Modified principles:
+  [PRINCIPLE_1_NAME] → Article I — Specs are the contract
+  [PRINCIPLE_2_NAME] → Article II — Traceability is enforced, not encouraged
+  [PRINCIPLE_3_NAME] → Article III — Human gates
+  [PRINCIPLE_4_NAME] → Article IV — Agent conduct
+
+Added sections:
+  Provenance rule (blockquote, verbatim from source)
+  Governance (mirroring direction + amendment procedure)
+
+Removed sections:
+  [PRINCIPLE_5_NAME] / [PRINCIPLE_5_DESCRIPTION] — the source constitution
+    defines exactly four articles; a fifth was not invented.
+  [SECTION_2_NAME] / [SECTION_3_NAME] — omitted for the same reason. Adding
+    them would require authoring governance content absent from the source,
+    which Article IV.3 forbids.
+
+Deferred TODOs:
+  TODO(RATIFICATION_DATE): The original human adoption date is not
+    recoverable from this repository. memory/constitution.md first appears
+    in the rebuilt demo history (2026-08-12), which is a reset commit, not
+    the adoption event. A human must supply the real date.
+-->
+
+# SDD Demo Constitution
+
+> **Provenance rule: this document is human-authored and human-amended
+> only. No agent may generate or modify it. Amendments require a PR
+> approved by two engineering leads.**
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### Article I — Specs are the contract
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+1. Every service begins with an EARS specification derived from the
+   approved BRD. The spec lives in this repository under `specs/`.
+2. Each acceptance criterion carries a stable ID (`GRT-###`). IDs are
+   never reused. Retired criteria are marked `[RETIRED]`, not deleted.
+3. GitHub Issues are derived from the spec, never the reverse.
+   Requirement changes happen here, via PR.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### Article II — Traceability is enforced, not encouraged
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+1. Every criterion must be covered by at least one test that declares
+   `Implements: GRT-###`.
+2. The `spec-drift` workflow, marked as a required status check on
+   `main`, fails any PR where criteria are uncovered or tests reference
+   retired/unknown criteria.
+3. Commits implementing a criterion reference its ID in the message.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### Article III — Human gates
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+1. **G1 — Spec approval.** A human (PO/BA) approves the spec, including
+   resolution of every item in the Ambiguity Log, before planning.
+2. **G2 — Plan approval.** A human (tech lead) approves the plan before
+   implementation.
+3. **G3 — Merge authority.** Every PR requires human review under
+   branch protection. Agents never merge.
+4. Issue sync runs in dry-run first; a human approves the batch before
+   issues are created. Issue state updates derive from evidence
+   (`--update`), never from hand-marking.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### Article IV — Agent conduct
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
-
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+1. Agents cite criterion IDs when recommending or implementing changes.
+2. Agent-generated artifacts are labeled as drafts until human-approved.
+3. Agents do not modify: this constitution, approved specs (except via
+   PR), GitHub Issues (outside the sync tool), or workflow/branch
+   protection definitions.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This file is a **mirror**, not a source. The authoritative, human-authored
+constitution lives at `memory/constitution.md`. Changes flow in one
+direction only — from `memory/` into `.specify/memory/` — never the
+reverse. An agent that finds this mirror out of date re-mirrors it; an
+agent that wants the text changed asks a human to amend the source.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+Amendment procedure is set by the source document itself: a PR approved by
+two engineering leads. No agent may author or approve that PR.
+
+Versioning policy for this mirror follows semantic versioning against the
+articles it carries. MAJOR: an article is removed or redefined in a
+backward-incompatible way. MINOR: an article or clause is added, or its
+guidance materially expanded. PATCH: wording, typo, and formatting
+clarifications that do not change what the articles require.
+
+Compliance review: the four articles are enforced in CI, not by
+attestation. The `spec-drift` required status check on `main` enforces
+Article II; branch protection enforces Article III.3. Every PR review
+verifies compliance with the remainder.
+
+**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE): original human adoption date unknown; see Sync Impact Report | **Last Amended**: 2026-08-12
