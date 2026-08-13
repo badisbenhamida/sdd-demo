@@ -1,58 +1,53 @@
-"""Language resolution, including the GRT-005 fallback decision.
+"""Locale resolution — a pure function of the catalog and the request.
 
-The whole behavioural core of the service is the table in data-model.md,
-reproduced by `resolve` below. It carries no caller identity by design:
-there is nothing here that could differ between two callers asking for
-the same language, which is what makes GRT-004 structural rather than a
-property somebody has to remember to preserve.
+No I/O, no clock, no caller identity. Kept separate from config.py so the
+fallback rule can be proved without a filesystem, and so that identical text
+for every caller (GRT-004) holds by construction rather than by convention.
 """
 
-from typing import Dict, NamedTuple, Optional
+from __future__ import annotations
 
-from src.config import DEFAULT_LANGUAGE
+from dataclasses import dataclass
+
+from src.config import LocaleCatalog
 
 
-class Greeting(NamedTuple):
-    """One response, in the shape contracts/greeting-api.yaml publishes."""
+@dataclass(frozen=True)
+class Resolution:
+    """What was served, and whether it is what was asked for."""
 
     message: str
-    language: str
-    requested_language: Optional[str]
+    locale: str
+    requested_locale: str
     fallback: bool
 
 
-def resolve(locales: Dict[str, str], requested: Optional[str]) -> Greeting:
-    """Pick the greeting for a caller's language preference.
+def resolve(catalog: LocaleCatalog, requested: str | None) -> Resolution:
+    """Resolve a greeting for `requested`, substituting the default if needed.
 
-    Three cases, matching the resolution table in data-model.md:
+    Three cases, per specs/001-greeting-service/data-model.md:
 
-    - no preference supplied -> the default language          (GRT-002)
-    - a supported language   -> that language                 (GRT-001)
-    - an unsupported language -> the default, flagged         (GRT-005)
+    1. No locale asked for      -> default served, fallback False.
+    2. Asked-for locale known   -> that locale served, fallback False.
+    3. Asked-for locale unknown -> default served, fallback True.  (GRT-005)
 
-    The third case is a *fallback, not a rejection*. The approved spec
-    (AMB-003 ruling) requires the end user to still see a greeting while
-    the caller can detect and report the gap, so the unsupported path
-    returns text plus `fallback=True` rather than an error.
-
-    No distinction is drawn between "a real language we do not carry" and
-    "not a language at all": the spec treats both as one deterministic
-    outcome, so an unrecognised or malformed identifier takes this same
-    path rather than a second failure mode no criterion describes.
+    Case 1 is deliberately NOT a fallback. The caller expressed no preference,
+    so nothing was substituted against their wishes, and flagging it would make
+    the indicator useless for the log-the-gap purpose the G1 ruling gave it.
     """
-    if requested is not None and requested in locales:
-        return Greeting(
-            message=locales[requested],
-            language=requested,
-            requested_language=requested,
-            fallback=False,
-        )
+    default_text = catalog.greetings[catalog.default]
+    default_display = catalog.default_display
 
-    return Greeting(
-        message=locales[DEFAULT_LANGUAGE],
-        language=DEFAULT_LANGUAGE,
-        requested_language=requested,
-        # True only when the caller asked for something we could not
-        # serve. Asking for nothing is not a fallback — it is GRT-002.
-        fallback=requested is not None,
-    )
+    if requested is None:
+        return Resolution(default_text, default_display, default_display, False)
+
+    key = requested.lower()
+    if key in catalog.greetings:
+        return Resolution(catalog.greetings[key], catalog.display_names[key],
+                          requested, False)
+
+    # GRT-005: an unsupported language is a successful response carrying the
+    # default-language greeting, not an error. Ruled at G1 on AMB-001 — the
+    # rejecting alternative was considered and refused, so returning an error
+    # here would be spec drift rather than a stricter reading.
+    return Resolution(default_text, default_display, requested, True)

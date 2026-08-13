@@ -1,74 +1,88 @@
-"""HTTP interface for the Global Greeting Service.
+"""Global Greeting Service — HTTP surface.
 
-One endpoint serves every regional application (GRT-003). The published
-contract is specs/001-greeting-service/contracts/greeting-api.yaml.
+Contract: specs/001-greeting-service/contracts/greeting-api.yaml
+
+The catalog is loaded once at startup and never reloaded. A failed load does
+not stop the service: it starts and reports that it cannot greet, so that
+"running but unable to serve" is an observable state rather than an
+unreachable port (research.md R-2).
 """
 
-from typing import Optional
+from __future__ import annotations
 
-from fastapi import FastAPI, Query
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from src.config import LocaleConfigError, load_locales
+from src.config import LocaleCatalog, load_catalog
 from src.greetings import resolve
 
-app = FastAPI(title="Global Greeting Service")
+UNAVAILABLE = 503
 
-# Loaded once, at import, and never reloaded (design D-5, research R-4).
-# Re-reading per request would let two callers straddling a config edit
-# receive different text for the same language, so GRT-004 would hold
-# only between deployments rather than always.
-try:
-    LOCALES = load_locales()
-    LOCALE_ERROR = None  # type: Optional[str]
-except LocaleConfigError as exc:
-    # Start unhealthy rather than abort (G2 ruling on research R-6):
-    # operations gets a definite answer instead of a crash-looping
-    # container with the reason buried in logs.
-    LOCALES = {}
-    LOCALE_ERROR = str(exc)
+
+def _unavailable(catalog: LocaleCatalog) -> JSONResponse:
+    """The one shape both endpoints use to say 'running, cannot greet'."""
+    return JSONResponse(
+        status_code=UNAVAILABLE,
+        content={
+            "status": "unhealthy",
+            "locales_loaded": 0,
+            "detail": catalog.error,
+        },
+    )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.catalog = load_catalog()
+    yield
+
+
+app = FastAPI(
+    title="Global Greeting Service",
+    version="0.1.0",
+    lifespan=lifespan,
+)
 
 
 @app.get("/greeting")
-def get_greeting(lang: Optional[str] = Query(default=None)):
-    """Return a greeting for the caller's language preference.
+def get_greeting(locale: str | None = None):
+    """Return a greeting for `locale`, or the default when it is unknown.
 
-    `lang` is passed explicitly by the caller (AMB-005 ruling, design
-    D-1) rather than negotiated from a header, so "what did the caller
-    ask for?" has one unambiguous answer to echo back on the GRT-005
-    fallback path.
-
-    Unsupported languages return **200**, not an error status — see
-    `src.greetings.resolve`.
+    An unsupported locale is answered with HTTP 200 and the default-language
+    greeting, flagged via `fallback` (GRT-005). It is not an error: the Gate G1
+    ruling on AMB-001 rejected the erroring alternative so that no calling
+    application needs error handling in order to display a greeting.
     """
-    if LOCALE_ERROR is not None:
-        return JSONResponse(status_code=503, content={"status": "unavailable"})
+    catalog = app.state.catalog
 
-    greeting = resolve(LOCALES, lang)
+    if not catalog.loaded:
+        # Not a fallback: with no catalog there is no default to substitute,
+        # and inventing one would break config exclusivity (research.md R-4).
+        return _unavailable(catalog)
+
+    result = resolve(catalog, locale)
     return {
-        "message": greeting.message,
-        "language": greeting.language,
-        "requested_language": greeting.requested_language,
-        "fallback": greeting.fallback,
+        "message": result.message,
+        "locale": result.locale,
+        "requested_locale": result.requested_locale,
+        "fallback": result.fallback,
     }
 
 
 @app.get("/health")
 def get_health():
-    """Report whether the service is available (GRT-006).
+    """Report whether the service can actually serve greetings.
 
-    Availability means the locale table loaded. A process accepting
-    connections but holding no table cannot serve any greeting, so
-    config-load state is not extra observability here — it *is*
-    availability (research R-5).
-
-    Deliberately reports nothing else. The AMB-004 ruling scoped this
-    release to an availability indication and deferred metrics,
-    per-language demand and structured logging to a separate BRD; a
-    request count or locale list here would be scope creep past an
-    approved gate.
+    Reflects catalog load state, not process liveness: a running process that
+    could not read its configuration is unhealthy (GRT-008). The HTTP status
+    carries the same signal as the body so a monitor that does not parse JSON
+    still reads it correctly.
     """
-    if LOCALE_ERROR is not None:
-        return JSONResponse(status_code=503, content={"status": "unavailable"})
+    catalog = app.state.catalog
 
-    return {"status": "ok"}
+    if not catalog.loaded:
+        return _unavailable(catalog)
+
+    return {"status": "healthy", "locales_loaded": len(catalog.greetings)}

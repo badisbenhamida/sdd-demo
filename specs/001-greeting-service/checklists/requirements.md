@@ -2,70 +2,83 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-08-12
-**Updated**: 2026-08-12 — after G1 approval (PO: Marco)
+**Last validated**: 2026-08-12, after Gate G1 approval
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
-- [x] Focused on user value and business needs
-- [x] Written for non-technical stakeholders
-- [x] All mandatory sections completed
+- [X] No implementation details (languages, frameworks, APIs)
+- [X] Focused on user value and business needs
+- [X] Written for non-technical stakeholders
+- [X] All mandatory sections completed
 
 ## Requirement Completeness
 
-- [x] No [NEEDS CLARIFICATION] markers remain
-- [x] Requirements are testable and unambiguous
-- [x] Success criteria are measurable
-- [x] Success criteria are technology-agnostic (no implementation details)
-- [x] All acceptance scenarios are defined
-- [x] Edge cases are identified
-- [x] Scope is clearly bounded
-- [x] Dependencies and assumptions identified
+- [X] No [NEEDS CLARIFICATION] markers remain
+- [X] Requirements are testable and unambiguous
+- [X] Success criteria are measurable
+- [X] Success criteria are technology-agnostic (no implementation details)
+- [X] All acceptance scenarios are defined
+- [X] Edge cases are identified
+- [X] Scope is clearly bounded
+- [X] Dependencies and assumptions identified
 
 ## Feature Readiness
 
-- [x] All functional requirements have clear acceptance criteria
-- [x] User scenarios cover primary flows
-- [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No implementation details leak into specification
+- [X] All functional requirements have clear acceptance criteria
+- [X] User scenarios cover primary flows
+- [X] Feature meets measurable outcomes defined in Success Criteria
+- [X] No implementation details leak into specification
 
-## Traceability (project-specific, per constitution Article I & II)
+## Traceability (project-specific — constitution Art. I & II)
 
-- [x] Every criterion carries a stable `GRT-###` ID
-- [x] Every criterion maps to a BRD requirement (traceability column)
-- [x] Every BRD requirement (BR-1..BR-4) is covered by at least one criterion
-- [x] No criterion exists that the BRD does not state or directly imply
-- [x] Criterion IDs are harvestable by `scripts/spec_drift.py` (verified: 6 active, 0 retired)
-- [x] Every criterion covered by a test declaring `Implements: GRT-###` — **6/6, `spec_drift.py` PASS**
+- [X] Every acceptance criterion carries a stable `GRT-###` ID
+- [X] Every criterion traces to a BRD requirement (Traces to column)
+- [X] Every BRD requirement is covered by at least one criterion (Traceability Summary)
+- [X] Criteria are harvestable by `spec_drift.py` — verified: 10 active, 0 retired
+- [X] Every BRD gap is recorded in the Ambiguity Log, not assumed away
 
-## Gate status
+## Gate G1 (constitution Art. III.1)
 
-- [x] **G1 — Spec approval**: approved by PO Marco on 2026-08-12, with all
-      seven Ambiguity Log items ruled on and recorded. Constitution
-      Art. III.1 satisfied.
-- [x] **G2 — Plan approval**: approved by Tech Lead Dana on 2026-08-12,
-      including the R-6 ruling on startup behaviour. Art. III.2 satisfied.
-- [ ] **G3 — Merge authority**: not started. Human review under branch
-      protection (Art. III.3).
+- [X] Every Ambiguity Log item carries an explicit ruling
+- [X] Every Ambiguity Log item status is **Resolved** — 8 of 8
+- [X] Resolver recorded on every item (PO: Marco, 2026-08-12)
+- [X] Out-of-scope rulings are recorded, not dropped (AMB-003, AMB-004, AMB-007, AMB-008 → Scope Boundary)
+- [X] Spec status is **Approved**
+- [X] No unresolved-status token remains in spec.md — verified: 0 matches
+      (the literal token is deliberately not written out here, so that a
+      repo-wide grep for it stays clean)
 
 ## Notes
 
-- **"Testable and unambiguous" now passes.** At draft time GRT-002,
-  GRT-005, and GRT-006 were marked *Provisional* because the BRD implied
-  the criterion but left a parameter open. The G1 rulings on AMB-002,
-  AMB-003, and AMB-004 supplied those parameters, and the three criterion
-  statements were sharpened to encode them. All six criteria are now
-  *Firm*. The criterion IDs did not change.
-- **`spec_drift.py` now passes (6/6 covered).** It was red at 0/6 through
-  spec and plan, which was correct — the gate asserts that no criterion
-  ships without evidence. Every criterion now has an annotated test and a
-  commit citing its ID.
-- **Two rulings deliberately narrow scope rather than adding work**:
-  AMB-004 (availability check only, metrics deferred) and AMB-006
-  (no per-caller authentication, platform-layer concern). Both are
-  recorded in the spec's Out of Scope section so the boundary stays
-  citable if challenged later.
-- **One recorded follow-up for the business** (AMB-007): set an
-  availability target before this service becomes a hard dependency of a
-  customer-facing journey. Not a blocker for this release.
+**Gate status**: **G1 passed** 2026-08-12, PO: Marco. All eight Ambiguity Log
+items resolved with the proposed resolution accepted in each case. Planning may
+begin; Gate G2 (plan approval, Art. III.2) is still ahead.
+
+**Criteria count changed at G1**: 8 → 10. The rulings on AMB-006 and AMB-002
+created two testable obligations that no existing criterion carried, so GRT-009
+(case-insensitive language matching) and GRT-010 (configuration as the single
+source of truth) were added. Existing IDs were not renumbered — Art. I.2.
+
+**Criteria sharpened at G1**: GRT-002, GRT-005, GRT-006, GRT-008. Wording only;
+IDs unchanged. GRT-005 and GRT-006 moved from a generic "defined outcome" to the
+fallback behaviour the AMB-001 ruling requires.
+
+**On "no [NEEDS CLARIFICATION] markers"** — this passes by mechanism, not by
+luck. This project routes underspecification into the Ambiguity Log, which
+constitution Art. III.1 makes a G1 gate item, rather than into inline markers
+the stock template caps at three.
+
+**On "requirements are testable and unambiguous"** — this now passes fully. In
+the pre-G1 draft, GRT-002, GRT-005, and GRT-006 were flagged *contingent* on
+unresolved rulings. Those rulings landed, and the contingency note has been
+removed from the spec.
+
+**On implementation detail** — the G1 rulings name HTTP (AMB-003) and JSON
+(AMB-005). These are business rulings on the integration contract recorded in
+the Ambiguity Log; no criterion in the table presupposes a transport or a
+payload shape, so the criteria remain technology-agnostic and the response field
+names are explicitly delegated to Gate G2.
+
+**`spec_drift.py` full run currently exits 1** — 10 criteria, 0 covered. That is
+the burndown starting state before any test exists, not a spec defect.

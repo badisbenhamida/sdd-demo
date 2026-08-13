@@ -1,18 +1,21 @@
-# Greeting text per language — business-owned configuration (AMB-001 ruling).
+# Locale catalog — the single source of greeting text, the supported set,
+# and the default locale (GRT-010).
 #
-# This file is the ONLY source of greeting text. No greeting is hardcoded
-# in src/, not even as an emergency default (plan.md research R-6):
-# a code-side default would let some deployments answer from config and
-# others from source, with nothing to reveal which, breaking GRT-004.
+# This file is the contract with operations: adding a language is a change
+# here and a restart, never a code change (SC-005). Nothing under src/ carries
+# greeting text, including no safety-net default — see specs/001-greeting-
+# service/research.md R-4.
 #
-# `en` is required — the AMB-002 ruling makes English the default when a
-# caller expresses no preference. The identifier is a constant in code;
-# the text lives here.
+# Launch membership is fixed by the Gate G1 ruling on AMB-002 (PO: Marco,
+# 2026-08-12): en-US, fr-FR, de-DE, ja-JP, with en-US the default.
 #
-# The languages below the default are illustrative. The real launch set is
-# a business deliverable under AMB-001 and can change without code change.
+# `default` MUST be a key of `locales`, else the catalog fails to load and the
+# service reports unhealthy rather than starting in a half-working state.
+
+default: en-US
 
 locales:
-  en: "Hello"
-  fr: "Bonjour"
-  de: "Hallo"
+  en-US: "Hello!"
+  fr-FR: "Bonjour !"
+  de-DE: "Hallo!"
+  ja-JP: "こんにちは!"

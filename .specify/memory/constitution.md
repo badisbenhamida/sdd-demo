@@ -1,11 +1,11 @@
 <!--
 Sync Impact Report
 ==================
-Version change: (unfilled template) → 1.0.0
-
-This file is a MIRROR of the human-authored `memory/constitution.md`.
-Article text is reproduced verbatim; only template scaffolding was applied.
-Changes flow ONLY from `memory/` to `.specify/`, never the reverse.
+Version change: (none — unfilled template) → 1.0.0
+Rationale: MAJOR/initial. First concrete ratification of this file; the
+prior contents were the unpopulated Spec Kit scaffold with zero defined
+principles. This is a verbatim mirror of the human-authored source at
+memory/constitution.md.
 
 Modified principles:
   [PRINCIPLE_1_NAME] → Article I — Specs are the contract
@@ -14,22 +14,24 @@ Modified principles:
   [PRINCIPLE_4_NAME] → Article IV — Agent conduct
 
 Added sections:
-  Provenance rule (verbatim preamble from the source constitution)
+  Provenance rule (blockquote, verbatim from source)
+  Governance (mirroring direction + amendment procedure)
 
 Removed sections:
-  [PRINCIPLE_5_NAME] — the source constitution has exactly four articles
-  [SECTION_2_NAME] / [SECTION_3_NAME] — no corresponding content in the
-    source; omitted rather than authored, since no agent may originate
-    constitution content (Article IV.3)
+  [PRINCIPLE_5_NAME] / [PRINCIPLE_5_DESCRIPTION] — the source constitution
+    defines exactly four articles; a fifth was not invented.
+  [SECTION_2_NAME] / [SECTION_3_NAME] — omitted for the same reason. Adding
+    them would require authoring governance content absent from the source,
+    which Article IV.3 forbids.
 
-Deferred items:
-  RATIFICATION_DATE — the source document carries no explicit adoption
-    date; 2026-08-12 is derived from the first commit of
-    memory/constitution.md (9f20142). Correct here only by amending the
-    source document first.
+Deferred TODOs:
+  TODO(RATIFICATION_DATE): The original human adoption date is not
+    recoverable from this repository. memory/constitution.md first appears
+    in the rebuilt demo history (2026-08-12), which is a reset commit, not
+    the adoption event. A human must supply the real date.
 -->
 
-# Engineering Constitution
+# SDD Demo Constitution
 
 > **Provenance rule: this document is human-authored and human-amended
 > only. No agent may generate or modify it. Amendments require a PR
@@ -77,23 +79,24 @@ Deferred items:
 
 ## Governance
 
-This file is a read-only mirror. The authoritative constitution is
-`memory/constitution.md`; changes flow only from `memory/` into
-`.specify/memory/`, never the reverse. Amending the mirror alone has no
-governing effect.
+This file is a **mirror**, not a source. The authoritative, human-authored
+constitution lives at `memory/constitution.md`. Changes flow in one
+direction only — from `memory/` into `.specify/memory/` — never the
+reverse. An agent that finds this mirror out of date re-mirrors it; an
+agent that wants the text changed asks a human to amend the source.
 
-Amendment procedure, per the provenance rule above: this document is
-human-authored and human-amended only; no agent may generate or modify
-it, and amendments require a PR approved by two engineering leads.
+Amendment procedure is set by the source document itself: a PR approved by
+two engineering leads. No agent may author or approve that PR.
 
-Versioning of this mirror follows semantic versioning: MAJOR for
-removal or incompatible redefinition of an article, MINOR for a new or
-materially expanded article, PATCH for clarifications that do not change
-meaning. The version tracks the mirrored content, not the mirroring
-mechanism.
+Versioning policy for this mirror follows semantic versioning against the
+articles it carries. MAJOR: an article is removed or redefined in a
+backward-incompatible way. MINOR: an article or clause is added, or its
+guidance materially expanded. PATCH: wording, typo, and formatting
+clarifications that do not change what the articles require.
 
-Compliance review: the `spec-drift` required status check on `main`
-enforces Article II on every PR; Article III gates (G1, G2, G3) are
-verified by the human approvers named in each gate.
+Compliance review: the four articles are enforced in CI, not by
+attestation. The `spec-drift` required status check on `main` enforces
+Article II; branch protection enforces Article III.3. Every PR review
+verifies compliance with the remainder.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-12 | **Last Amended**: 2026-08-12
+**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE): original human adoption date unknown; see Sync Impact Report | **Last Amended**: 2026-08-12

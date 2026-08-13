@@ -1,90 +1,116 @@
-"""Acceptance tests for the service's interface surface and health.
+"""Acceptance tests for the operations health indicator.
 
-The `# Implements: GRT-###` annotations are the contract between spec and
-code (constitution Art. II.1), harvested by scripts/spec_drift.py.
+# Implements: GRT-007
+
+GRT-007: "The Greeting Service shall expose a health indicator that operations
+can query to determine whether the service is able to serve greetings."
+
+The HTTP status carries the same signal as the body, deliberately: a monitor
+that does not parse JSON must still read the answer correctly. Metrics, log
+aggregation, and alerting are absent because they were ruled out of scope at
+G1 (AMB-004) -- deferred, not forgotten.
 """
 
-import importlib
-
+import pytest
 from fastapi.testclient import TestClient
 
-import src.config
-import src.main
-from src.main import app
-
-client = TestClient(app)
+from src.config import load_catalog
+from src.main import UNAVAILABLE, app
 
 
-def _served_paths() -> set:
-    """Every path this application actually serves."""
-    return {route.path for route in app.routes if hasattr(route, "path")}
+@pytest.fixture
+def client():
+    with TestClient(app) as test_client:
+        yield test_client
 
 
-# Implements: GRT-003
-def test_a_single_greeting_interface_serves_every_regional_application():
-    """GRT-003: one interface, usable by every regional application.
-
-    This is a negative claim — that no second, per-region greeting
-    interface exists — so it asserts the served route set rather than a
-    response. Exactly one greeting path, and it takes the region-neutral
-    form: no /greeting/emea, no /emea/greeting.
-
-    A test can only hold the route set as it stands today. Nothing here
-    stops a second interface being added tomorrow; that is a reviewer's
-    job, and plan.md says so rather than implying this test covers it.
-    """
-    greeting_paths = {path for path in _served_paths() if "greeting" in path}
-
-    assert greeting_paths == {"/greeting"}
-
-    # The same single path answers callers that declare different
-    # regions — the interface does not vary by who is calling.
-    for region in ("emea", "apac", "amer"):
-        response = client.get("/greeting", headers={"X-Region": region})
-        assert response.status_code == 200
-
-
-# Implements: GRT-006
-def test_health_reports_available_when_the_locale_table_loaded():
-    """GRT-006: operations can determine the service is available.
-
-    Queryable directly, with no assistance from the owning team (SC-002).
-
-    The payload carries `status` and nothing else. The AMB-004 ruling
-    scoped this release to an availability indication and deferred
-    metrics, per-language demand and structured logging to a separate
-    BRD, so this asserts the *absence* of extra fields too — scope creep
-    past an approved gate should fail a test, not pass unnoticed.
-    """
+def test_health_is_queryable_without_making_a_greeting_request(client):
+    """Operations must not have to infer health from a greeting response."""
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json()["status"] == "healthy"
 
 
-# Implements: GRT-006
-def test_health_reports_unavailable_when_the_locale_table_did_not_load(
-    tmp_path, monkeypatch
-):
-    """GRT-006: the failure case, which is the one operations cares about.
+def test_health_reports_how_many_locales_are_loaded(client):
+    """A green check that is also informative."""
+    body = client.get("/health").json()
 
-    A process accepting connections but holding no locale table cannot
-    serve any greeting, so reporting it healthy would mislead exactly
-    when the answer matters (research R-5).
+    assert body["locales_loaded"] == len(load_catalog().greetings)
 
-    Exercises real startup against a missing config file rather than
-    poking the module's state, because the G2 ruling on R-6 is
-    specifically about what startup does: begin unhealthy and report it,
-    rather than abort.
+
+def test_a_healthy_service_reports_no_failure_detail(client):
+    body = client.get("/health").json()
+
+    assert body.get("detail") is None
+
+
+# Implements: GRT-008
+#
+# GRT-008: "While the Greeting Service's greeting content is not loaded, the
+# health indicator shall report unhealthy."
+#
+# The point is that the process STAYS UP and says so. Failing fast at import
+# would be the usual instinct for a config error, but it would leave nothing
+# running to answer /health -- an unreachable port is indistinguishable from a
+# network fault, and the criterion would be unobservable (research.md R-2).
+# "Running but unable to greet" has to be a reachable state to be a testable
+# one, which is why the first test below asserts the service responds at all.
+
+
+@pytest.fixture
+def broken_client(monkeypatch, tmp_path):
+    """A service whose configuration could not be loaded."""
+    missing = tmp_path / "absent.yml"
+    monkeypatch.setattr("src.main.load_catalog", lambda: load_catalog(missing))
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+def test_a_running_service_with_unloadable_config_still_answers(broken_client):
+    """A crash would make this criterion unobservable, not merely untested."""
+    response = broken_client.get("/health")
+
+    assert response.status_code == UNAVAILABLE
+
+
+def test_it_reports_unhealthy_in_the_body_too(broken_client):
+    body = broken_client.get("/health").json()
+
+    assert body["status"] == "unhealthy"
+    assert body["locales_loaded"] == 0
+    assert body["detail"], "operations needs to know why, not just that"
+
+
+def test_greetings_are_refused_rather_than_invented(broken_client):
+    """With no catalog there is no default to fall back to.
+
+    A greeting served here would mean a hardcoded literal survived in src/,
+    breaking config exclusivity (research.md R-4). This is deliberately NOT
+    the AMB-001 fallback path: that ruling governs unsupported locales, which
+    presumes a catalog to be unsupported against.
     """
-    monkeypatch.setattr(src.config, "CONFIG_PATH", tmp_path / "absent.yml")
-    reloaded = importlib.reload(src.main)
-    try:
-        response = TestClient(reloaded.app).get("/health")
+    response = broken_client.get("/greeting", params={"locale": "fr-FR"})
 
-        assert response.status_code == 503
-        assert response.json() == {"status": "unavailable"}
-    finally:
-        # Restore the good module state for any later test.
-        monkeypatch.undo()
-        importlib.reload(src.main)
+    assert response.status_code == UNAVAILABLE
+    assert "message" not in response.json()
+
+
+def test_a_malformed_config_is_unhealthy_not_merely_empty(monkeypatch, tmp_path):
+    """Every failure path reaches the same observable state."""
+    broken = tmp_path / "locales.yml"
+    broken.write_text("default: en-US\nlocales: [not, a, mapping]\n",
+                      encoding="utf-8")
+    monkeypatch.setattr("src.main.load_catalog", lambda: load_catalog(broken))
+
+    with TestClient(app) as client:
+        response = client.get("/health")
+
+    assert response.status_code == UNAVAILABLE
+    assert response.json()["status"] == "unhealthy"
+
+
+def test_process_liveness_alone_is_not_health(broken_client):
+    """The AMB-004 ruling: up is not the same as able to greet."""
+    assert broken_client.get("/openapi.json").status_code == 200
+    assert broken_client.get("/health").status_code == UNAVAILABLE

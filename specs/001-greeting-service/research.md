@@ -1,215 +1,94 @@
 # Phase 0 — Research: Global Greeting Service
 
-**Feature**: [spec.md](./spec.md) (Approved — Gate G1) | **Plan**: [plan.md](./plan.md)
-**Date**: 2026-08-12
+**Feature**: `specs/001-greeting-service` | **Date**: 2026-08-12 | **Plan**: [plan.md](./plan.md)
 
-The stack was given: Python 3.12, FastAPI, pytest, no database, locale
-templates exclusively from `config/locales.yml`. So there are no
-NEEDS CLARIFICATION items on technology choice. What remains genuinely
-open are the design questions G1 explicitly deferred to G2 — chiefly
-AMB-005 (how a caller expresses a language preference) — plus the
-consequences of the exclusive-config constraint.
+**Status**: Approved — supports a plan that passed Gate G2 on 2026-08-12 (Tech Lead: Dana). Decisions R-1…R-6 are binding on implementation.
 
-Each decision below cites the criterion it serves. None of them changes
-a requirement; where a design option would have, it is rejected and the
-reason is recorded.
+Scope note: the technology choice itself was not researched. Python 3.12, FastAPI, and pytest were given as inputs, and all three are already pinned in `requirements.txt` and exercised by `.github/workflows/spec-drift.yml`. What needed resolving was *how* to use them against the G1 rulings. Each item below closes one unknown the Technical Context would otherwise have carried as `NEEDS CLARIFICATION`.
 
 ---
 
-## R-1 — How does a caller express its language preference?
+## R-1 — What HTTP status does a fallback return?
 
-**Decision**: An explicit query parameter, `GET /greeting?lang=fr`.
-Absent parameter means "no preference" and triggers the GRT-002 default.
+**Decision**: HTTP **200** with `fallback: true` in the body.
 
-**Serves**: GRT-001, GRT-003. Implements the AMB-005 ruling.
-
-**Rationale**: The G1 ruling says the preference is "passed explicitly by
-the caller". A query parameter is exactly that: present or absent, one
-value, visible in logs and in a curl command. It is also the cheapest
-thing to test — no header plumbing in the test client.
+**Rationale**: GRT-005 requires the service return a default-language greeting "rather than an error", per the AMB-001 ruling. A 4xx would make every calling application implement error handling in order to display a greeting, which is precisely what the PO ruled against. The request succeeded — a greeting was produced — so 200 is also the honest status.
 
 **Alternatives considered**:
-
-- **`Accept-Language` header with content negotiation.** The HTTP-native
-  answer, and the one most reviewers will ask about. Rejected because
-  negotiation is *implicit*: browsers inject the header without the
-  calling application choosing it, quality weights (`fr;q=0.9, en;q=0.8`)
-  make "what did the caller ask for?" a ranking rather than a value, and
-  GRT-005 needs to echo a single `requested_language` back. It also sits
-  awkwardly with AMB-005's word "explicitly".
-- **Path segment, `/greeting/fr`.** Reads well, but makes "no preference"
-  a separate route rather than an absent value, which splits GRT-002 and
-  GRT-001 across two paths for no gain.
-- **Both header and parameter, parameter wins.** Rejected as unneeded
-  surface: two ways to say the same thing, with a precedence rule to
-  document and test. Can be added later without breaking D-1 if a real
-  caller needs it.
+- *4xx with a machine-readable code* — matches a stricter reading of BR-3 and was the alternative the PO explicitly rejected at G1. Rejected here on that ruling, not on merit.
+- *200 with a warning header* — keeps the body clean, but headers are easy for a caller to drop through a proxy or client library, and GRT-006 wants the indicator in the payload.
+- *203 Non-Authoritative Information* — semantically cute, but non-obvious to callers and likely to be treated as an error by defensive client code.
 
 ---
 
-## R-2 — What shape is the response?
+## R-2 — How is `config/locales.yml` loaded, and when?
 
-**Decision**: JSON on every path, with a fixed schema:
+**Decision**: Load **once at application startup** via a FastAPI lifespan handler, into an immutable in-memory structure. Failure to load is captured, not raised — the app still starts, and reports unhealthy.
 
-| Field | Type | Meaning |
+**Rationale**: GRT-008 requires the health indicator report unhealthy *while* content is not loaded. If a load failure crashed the process at import time, there would be no service left to answer `/health`, and GRT-008 would be untestable — the failure mode would be an unreachable port, indistinguishable from a network problem. Starting degraded and reporting it is what makes "running but unable to greet" an observable state, which is the whole point of the AMB-004 ruling.
+
+**Alternatives considered**:
+- *Read the file per request* — would let operators edit locales without a restart, but adds filesystem I/O to the render path of every page load, and the BRD asks for none of it. Rejected as unrequested scope.
+- *Fail fast at import* — simpler, and the usual default for config errors. Rejected because it makes GRT-008 unobservable, as above.
+- *Reload on file change (watcher)* — no requirement. Rejected as unrequested scope.
+
+---
+
+## R-3 — How is case-insensitive matching implemented (GRT-009)?
+
+**Decision**: Normalise locale keys to **lowercase once at load time**; lowercase the incoming query value at lookup. The response echoes the **configured** spelling, not the caller's.
+
+**Rationale**: Normalising in one place makes case-insensitivity a property of the loaded data, so a future call site cannot reintroduce case sensitivity by forgetting to fold. Echoing the configured spelling keeps `locale` canonical in the payload — a caller asking for `FR-fr` gets `"locale": "fr-FR"` back, which is more useful than a mirror of their own typo.
+
+**Alternatives considered**:
+- *Fold at each comparison* — same behaviour today, but the invariant lives in every call site instead of one, and drifts the moment a second lookup path appears.
+- *Full BCP-47 canonicalisation via a library (e.g. `langcodes`)* — correct in the general case, and would handle `fr_FR` or `fra`. Rejected: it adds a dependency the pinned set does not carry, and the G1 ruling on AMB-006 defined the contract as membership of the configured set, not general tag parsing. Anything outside the set falls back, which is defined behaviour rather than an error.
+
+---
+
+## R-4 — How is "templates load exclusively from `config/locales.yml`" enforced?
+
+**Decision**: All file reads live in `src/config.py`; no greeting literal appears anywhere in `src/`, **including no built-in default greeting**. A missing or unparseable file yields the empty-config state (→ unhealthy), never a hardcoded fallback string.
+
+**Rationale**: "Exclusively" is a constraint that decays silently. The tempting failure is a safety-net literal — `return "Hello!"` when config is missing — which would satisfy every greeting test while quietly violating the constraint and masking the unhealthy state GRT-008 exists to expose. Confining I/O to one module makes the constraint auditable by reading one file, and the no-literal rule is stated here so it can be checked at review rather than assumed.
+
+**Alternatives considered**:
+- *Embedded default greeting as a safety net* — improves apparent availability, directly violates the constraint, and hides exactly the condition GRT-008 must surface. Rejected.
+- *An automated lint forbidding string literals in `src/`* — enforceable but noisy against ordinary code, and unrequested. Left to human review at G3.
+
+---
+
+## R-5 — Health endpoint semantics (GRT-007, GRT-008)
+
+**Decision**: `GET /health` → **200** with a body naming the load state when locales are loaded; **503** when they are not.
+
+**Rationale**: The AMB-004 ruling requires health reflect content load state rather than process liveness. 503 Service Unavailable is the standard way to say "running, cannot serve" and is what orchestrators and load balancers already act on, so the signal is usable by operations without bespoke monitoring. A body carrying the loaded-locale count makes a green check informative rather than merely green.
+
+**Alternatives considered**:
+- *Always 200 with `{"status": "unhealthy"}`* — forces every monitor to parse the body; a default HTTP check would report healthy while the service could not greet.
+- *Separate liveness and readiness endpoints* — the standard Kubernetes split, and defensible. Rejected as unrequested: BR-4 asks for monitorability, the G1 ruling scoped it to one health indicator, and a second endpoint would need a criterion that does not exist.
+
+---
+
+## R-6 — Does anything here need persistence?
+
+**Decision**: No database, no cache, no session state. Confirmed against the spec, not merely accepted as an input constraint.
+
+**Rationale**: Every criterion is a pure function of the request and the loaded configuration. Personalization is out of scope (BRD §3), so nothing is per-user; translation workflow is out of scope, so nothing is written back. There is no criterion whose behaviour depends on a prior request. The "no database" input constraint and the spec agree.
+
+**Alternatives considered**: none required — no criterion motivates storage.
+
+---
+
+## Resolved Unknowns Summary
+
+| Unknown from Technical Context | Resolved by | Outcome |
 |---|---|---|
-| `message` | string | The greeting text to display |
-| `language` | string | The language the text is actually in |
-| `requested_language` | string or null | What the caller asked for; null when no preference was supplied |
-| `fallback` | boolean | True when the requested language was unavailable and the default was used |
+| Status code for an unsupported locale | R-1 | 200 + `fallback: true` |
+| Config load timing and failure behaviour | R-2 | Startup lifespan; degrade, do not crash |
+| Case-insensitive matching mechanism | R-3 | Fold at load; echo configured spelling |
+| Enforcing config exclusivity | R-4 | I/O in one module; no greeting literals in `src/` |
+| Health signal semantics | R-5 | 200 / 503 on load state |
+| Persistence need | R-6 | None |
 
-**Serves**: GRT-001, GRT-002, GRT-005.
-
-**Rationale**: GRT-005 requires the service to "indicate in its response
-that a fallback occurred". A dedicated boolean makes that indication
-machine-readable and independent of the status code, so a caller detects
-the gap with one field check rather than by comparing what it asked for
-against what it got. Keeping all four fields present on every path means
-callers parse one schema, not three.
-
-**Alternatives considered**:
-
-- **Bare string body.** Smallest possible response, but there is nowhere
-  to signal fallback, so GRT-005 becomes unimplementable without abusing
-  the status code. Rejected.
-- **Omit `requested_language` and `fallback` on the happy path.** Saves
-  bytes; costs every caller a null-check and makes the contract two
-  shapes. Rejected — the schema is the interface (GRT-003).
-- **A `warnings[]` array instead of a boolean.** More extensible, but
-  nothing else currently warns. Speculative generality. Rejected.
-
----
-
-## R-3 — Fallback or refusal for an unsupported language?
-
-**Decision**: Fall back to the default language and return **HTTP 200**
-with `fallback: true`.
-
-**Serves**: GRT-005.
-
-**Rationale**: This is not an open design question — it was ruled at G1.
-AMB-003: "Fall back to the default language **and** state in the response
-that a fallback occurred… Refusing outright was rejected because it
-surfaces as broken UI." The plan implements the ruling.
-
-An error status (4xx) would contradict the approved criterion: a status
-in the 4xx range tells the caller the request failed, when in fact a
-usable greeting was returned. Callers that treat non-2xx as an exception
-would discard a valid greeting and render nothing — precisely the broken
-UI the PO ruled against.
-
-**Alternatives considered**:
-
-- **HTTP 400 with an `UNSUPPORTED_LOCALE` code and no fallback.** This is
-  what `docs/DEMO-RUNBOOK.md:120` sketches, and it is a defensible design
-  in the abstract — it is louder, and it forces callers to handle the
-  gap. It is rejected here for one reason only: **it contradicts an
-  approved criterion.** Adopting it is a spec change requiring the PO at
-  G1, not a plan decision. Flagged in plan.md as a divergence so the tech
-  lead sees it at G2 rather than discovering it in review.
-- **200 with the requested language echoed in `language`.** Would lie
-  about what the text is. Rejected.
-
----
-
-## R-4 — When and how are locales loaded?
-
-**Decision**: Read and validate `config/locales.yml` once at application
-startup into an immutable in-memory mapping. No file access on the
-request path. No reload endpoint, no file watching.
-
-**Serves**: GRT-004, and GRT-006 by way of R-5.
-
-**Rationale**: GRT-004 requires every calling application to receive the
-same text for a given language. If the file were re-read per request, two
-callers straddling a config edit would legitimately receive different
-text and GRT-004 would hold only between deployments. Loading once makes
-the guarantee structural for the process lifetime. It also keeps the
-request path allocation-only — no I/O, no parse — which matters for a
-service every regional app depends on, even though AMB-007 sets no target.
-
-**Alternatives considered**:
-
-- **Read per request.** Simplest to reason about for config edits; breaks
-  the GRT-004 guarantee mid-flight and puts a YAML parse on every call.
-  Rejected.
-- **Cached read with TTL.** Same GRT-004 hazard as per-request, just
-  rarer and harder to reproduce. Rejected.
-- **Hot-reload endpoint.** Operationally attractive, but it is new
-  surface area no criterion asks for, and it reintroduces the mid-flight
-  inconsistency. Out of scope — a config change ships as a restart.
-
----
-
-## R-5 — What does "available" mean for the health indication?
-
-**Decision**: `GET /health` returns 200 when the locale table loaded
-successfully and 503 when it did not. Nothing else is reported.
-
-**Serves**: GRT-006.
-
-**Rationale**: GRT-006 asks whether "the service is available". A process
-that is accepting connections but holds no locale table cannot serve any
-greeting, so reporting it healthy would make the indication misleading
-exactly when operations most needs it. Config-load state is therefore not
-extra observability — it *is* availability for this service.
-
-This deliberately stops short of anything else. AMB-004 was ruled at G1
-as availability-only, with "metrics, per-language demand reporting, and
-structured logging… deferred to a separate BRD". So: no request counters,
-no per-language hit counts, no uptime figure, no locale list in the
-payload. Each of those would be a small, tempting, unapproved expansion.
-
-**Alternatives considered**:
-
-- **Always 200 if the process is up.** A pure liveness check. Rejected as
-  actively misleading under the D-8 failure mode — the one case where the
-  answer matters.
-- **Report the loaded locale count or list.** Genuinely useful to
-  operations, and out of scope under the AMB-004 ruling. If operations
-  wants it, that is a new BRD, not a quiet addition here.
-
----
-
-## R-6 — Consequence of "exclusively from config/locales.yml"
-
-**Decision**: No greeting text appears anywhere in source code, including
-as a last-resort default. If the file is missing, unparseable, or lacks
-the default language, the service does not serve invented text — it
-reports unhealthy via R-5 and `GET /greeting` fails loudly.
-
-**Serves**: GRT-004, GRT-006. Implements the stated constraint.
-
-**Rationale**: This is the constraint's real consequence and it is worth
-stating plainly, because the instinct when writing the config loader is
-to add `except: return {"en": "Hello"}`. That single line would violate
-the exclusivity constraint and quietly break GRT-004: some deployments
-would serve config text and others code text, with nothing to reveal
-which. The design has no in-code greeting to fall back to, by intent.
-
-**Startup behaviour on bad config — ruled at G2**: whether a bad config
-should abort startup outright or start the process in an unhealthy state.
-Starting unhealthy was recommended — operations can then query `/health`
-and get a definite answer rather than facing a crash-looping container
-with the reason buried in logs. Either satisfies GRT-006.
-
-**Ruling (Tech Lead: Dana, 2026-08-12)**: the recommendation is adopted.
-The service starts in an unhealthy state and reports it via `/health`;
-it does not abort startup.
-
----
-
-## Summary of unresolved items
-
-| Item | Status |
-|---|---|
-| Technology choices | Given in the plan request; nothing to research |
-| AMB-005 mechanism (deferred to G2) | Resolved by R-1 |
-| Response shape | Resolved by R-2 |
-| Fallback semantics | Fixed by the G1 ruling; R-3 implements it |
-| Config load timing | Resolved by R-4 |
-| Health semantics | Resolved by R-5 |
-| Startup behaviour on bad config | **Ruled at G2** — start unhealthy, do not abort (R-6) |
-
-No NEEDS CLARIFICATION remains, and nothing is left awaiting an approver:
-the last open item (R-6) was ruled at G2 on 2026-08-12.
+No `NEEDS CLARIFICATION` markers remain in the plan's Technical Context.

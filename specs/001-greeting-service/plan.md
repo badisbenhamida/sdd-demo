@@ -1,120 +1,86 @@
 # Implementation Plan: Global Greeting Service
 
-**Branch**: `demo-live` | **Date**: 2026-08-12 | **Spec**: [spec.md](./spec.md)
+**Feature Directory**: `specs/001-greeting-service` | **Date**: 2026-08-12 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `/specs/001-greeting-service/spec.md`
-(Status: Approved — Gate G1, PO: Marco, 2026-08-12)
+**Input**: Feature specification from `specs/001-greeting-service/spec.md` (Approved at G1, 2026-08-12, PO: Marco)
 
-**Status**: **Approved — Gate G2** (Tech Lead: Dana, 2026-08-12). Per
-constitution Art. III.2 a human tech lead approved this plan before
-implementation. Implementation may begin against `tasks.md`.
+**Status**: **Approved — Gate G2 passed** 2026-08-12 by **Tech Lead: Dana**. Implementation may begin. Per Art. IV.2 this artifact is no longer a draft; per Art. III.3, merge authority (G3) is still ahead and remains a human decision under branch protection.
 
-**Gate G2 record**: approved as written, including design decisions
-D-1…D-8 and the AMB-005 interface mechanism deferred here from G1. The
-one item research.md left to the approver — startup behaviour on bad
-config (R-6) — is ruled by this approval: the service **starts in an
-unhealthy state** rather than aborting, so operations gets a definite
-answer from `/health` instead of a crash-looping container.
+---
+
+## Gate G2 — Plan approval record
+
+| Field | Value |
+|---|---|
+| Gate | G2 — Plan approval (constitution Art. III.2) |
+| Outcome | **Approved** |
+| Approver | Tech Lead: Dana |
+| Date | 2026-08-12 |
+| Scope approved | This plan, its Phase 0/1 artifacts (`research.md`, `data-model.md`, `contracts/greeting-api.yaml`, `quickstart.md`), and `tasks.md` |
+| Delegated decision settled | AMB-005 response field naming — `{message, locale, requested_locale, fallback}` is now the binding contract (see below) |
+| Criteria | Unchanged at ten, GRT-001…GRT-010. The plan added none and renumbered none. |
+
+**What this unblocks**: implementation of `tasks.md` (4 stories, 21 tasks) and, when the batch is reviewed, `gh_sync.py --apply`. **What it does not unblock**: merging. G3 requires human review under branch protection, and agents never merge (Art. III.3).
+
+---
 
 ## Summary
 
-Deliver the six approved criteria (GRT-001…GRT-006) as a small stateless
-HTTP service. A caller names a language explicitly; the service returns
-the greeting text for it, falls back to English and says so when the
-language is unsupported, and exposes a health indication for operations.
+Serve a per-language greeting to regional applications over a small HTTP API, with all greeting text and the supported-language set loaded from a single YAML configuration file. An unsupported language never errors: the service substitutes the default language and marks the response so callers can detect it. A health endpoint reports whether that configuration actually loaded, so "process up" and "able to greet" are distinguishable.
 
-Greeting text lives exclusively in `config/locales.yml`, loaded once at
-startup. There is no database and no greeting text embedded in code —
-that single-source rule is what makes GRT-004 (identical text for every
-caller) true by construction rather than by discipline.
+Ten criteria (GRT-001…GRT-010) are satisfied by three small modules: a config loader, a lookup with fallback, and a FastAPI surface exposing two endpoints. No database — the service holds no state beyond what it read from configuration at startup.
+
+---
 
 ## Technical Context
 
-**Language/Version**: Python 3.12 (matches `.github/workflows/spec-drift.yml`)
+**Language/Version**: Python 3.12 *(matches `.github/workflows/spec-drift.yml`, which pins `python-version: "3.12"`)*
 
-**Primary Dependencies**: FastAPI (HTTP interface), PyYAML (config load),
-Uvicorn (ASGI server), httpx (test client). All already present in
-`requirements.txt`; this plan adds no new dependency.
+**Primary Dependencies**: FastAPI (HTTP surface), PyYAML (configuration), uvicorn (server) — all already pinned in `requirements.txt`; no new dependency is introduced by this plan.
 
-**Storage**: None. No database. State is a read-only locale table loaded
-from `config/locales.yml` at startup.
+**Storage**: None. No database (explicit input constraint). The only persistent artifact is `config/locales.yml`, read at startup.
 
-**Testing**: pytest, driving the app through FastAPI's `TestClient`
-(httpx) in-process — no network, no running server needed in CI.
+**Testing**: pytest 8.4.2, with `httpx` via FastAPI's `TestClient` for endpoint tests. `pytest.ini` already sets `pythonpath = .` and `testpaths = tests`, so tests import the app as `from src.main import app`.
 
-**Target Platform**: Linux server (containerised or bare ASGI). CI runs
-`ubuntu-latest`.
+**Target Platform**: Linux server (containerised or bare uvicorn); no platform-specific behaviour.
 
 **Project Type**: Single-project web service.
 
-**Performance Goals**: None specified. AMB-007 was ruled at G1 as "no
-formal service-level objective in this release", so this plan sets no
-throughput or latency target and adds no performance-tuning work.
+**Performance Goals**: None contractual — AMB-008 was ruled at G1 to set no availability or latency target for this release. Calling applications own their own timeouts.
 
 **Constraints**:
-- Locale templates load **exclusively** from `config/locales.yml`. No
-  greeting text is hardcoded anywhere, including as an emergency default.
-- `config/locales.yml` does not exist yet; it is created during
-  implementation as part of the task that first needs it.
-- No database, no external service call on the request path.
+- Locale templates load **exclusively** from `config/locales.yml` (explicit input constraint). No hardcoded greeting text anywhere in `src/`, including no built-in default greeting.
+- `config/locales.yml` **does not exist yet** — it is created during implementation, and its creation is a task, not a prerequisite.
+- No database, no cache, no external service call.
 
-**Scale/Scope**: Two endpoints, three source modules, one config file.
-The supported-language set is business-owned configuration (AMB-001) and
-can grow without code change — that is the design's main flexibility
-requirement.
+**Scale/Scope**: 2 endpoints, 4 launch locales (en-US, fr-FR, de-DE, ja-JP), ~150 lines of source. First-party internal callers only.
+
+---
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-checked after Phase 1 design.*
 
-| Article | Requirement | This plan | Verdict |
+| Article | Requirement | Status (pre-Phase 0) | Status (post-Phase 1) |
 |---|---|---|---|
-| I.1 | Spec derived from approved BRD, lives under `specs/` | `specs/001-greeting-service/spec.md`, from BRD-2026-014 | PASS |
-| I.2 | Stable `GRT-###` IDs, never reused | Six criteria, unchanged since draft; plan adds none | PASS |
-| I.3 | Issues derived from spec, never the reverse | Plan changes no requirement; `tasks.md` (next command) is the issue source | PASS |
-| II.1 | Every criterion covered by a test declaring `Implements: GRT-###` | Test Strategy below assigns a named test to all six | PASS (verified at implementation, not now) |
-| II.2 | `spec-drift` required check fails on uncovered criteria | Unchanged; currently red at 0/6, by design | PASS |
-| II.3 | Commits reference criterion IDs | Task commits will cite their GRT ID | PASS |
-| III.1 | G1 spec approval by human, ambiguity log resolved | Approved 2026-08-12 by PO Marco, all 7 items ruled | PASS |
-| III.2 | G2 plan approval by human tech lead before implementation | Approved 2026-08-12 by Tech Lead Dana | PASS |
-| III.3 | Human review under branch protection; agents never merge | Unchanged | PASS |
-| IV.1 | Agents cite criterion IDs | Every design decision below cites its criterion | PASS |
-| IV.2 | Agent artifacts labelled draft until approved | Drafted as such; approved by a named human at G2 | PASS |
-| IV.3 | Agents do not modify constitution, approved specs, issues, workflows | This plan modifies none of them | PASS |
+| I.1 | Spec derived from approved BRD, lives under `specs/` | PASS — `specs/001-greeting-service/spec.md` from BRD-2026-014 | PASS |
+| I.2 | Stable `GRT-###` IDs, never reused | PASS — GRT-001…GRT-010 fixed at G1 | PASS — plan adds no criteria and renumbers none |
+| I.3 | Issues derived from spec, never the reverse | PASS — no issues created yet; `gh_sync.py` will derive them from `tasks.md` | PASS |
+| II.1 | Every criterion covered by a test declaring `Implements: GRT-###` | PENDING — no tests yet (0/10 covered) | PASS by design — every criterion is assigned a test module below |
+| II.2 | `spec-drift` required check fails on uncovered criteria | PASS — gate is live and correctly red at 0/10 | PASS |
+| II.3 | Commits reference criterion IDs | PASS — enforced per task at implementation | PASS |
+| III.1 | G1 spec approval, Ambiguity Log resolved | PASS — approved 2026-08-12, PO: Marco, 8/8 resolved | PASS |
+| III.2 | G2 plan approval by tech lead | PASS — approved 2026-08-12, Tech Lead: Dana | PASS |
+| III.3 | Human review under branch protection; agents never merge | PASS — no merge attempted | PASS |
+| IV.1 | Agents cite criterion IDs | PASS — every design decision below carries its IDs | PASS |
+| IV.2 | Agent artifacts labelled draft until approved | PASS — status line above | PASS |
+| IV.3 | Agents do not modify constitution, approved spec, issues, or workflows | PASS — this plan modifies none of them | PASS — no change proposed to `spec.md`, `scripts/`, or `.github/workflows/` |
 
-**Result**: No violations, and no gate left open. G1 and G2 are both
-closed by named humans; G3 (merge authority) remains ahead, as it must —
-the agent does not merge.
+**Verdict**: no violations, and G2 is now closed. **Complexity Tracking is therefore empty and omitted** — nothing here requires justification against a simpler alternative.
 
-**Post-design re-check**: Re-run after Phase 1 below. No new violation
-introduced; the design adds no project, no persistence layer, and no
-dependency beyond what `requirements.txt` already declares.
+One deliberate note on II.1: the plan does not mark it PASS on the promise of future work. It is PASS *by design* — the criterion-to-test map below assigns all ten criteria to a named test module, so no criterion can reach implementation without an owner. The gate itself stays red until those tests exist, which is correct.
 
-## Design Decisions
-
-Recorded here because AMB-005 was ruled at G1 as "the concrete mechanism
-is a design decision recorded at G2, not a business ruling". This section
-is that record. Full rationale and rejected alternatives: [research.md](./research.md).
-
-| # | Decision | Serves | Rationale in brief |
-|---|---|---|---|
-| D-1 | Language preference is an explicit query parameter `lang`, not a negotiated `Accept-Language` header | GRT-001, GRT-003 | AMB-005 ruled the preference is "passed explicitly by the caller". Header negotiation is implicit and quality-weighted; a query parameter is unambiguous and trivially testable |
-| D-2 | One endpoint `GET /greeting` serves every regional application | GRT-003 | "A single interface that every regional calling application can use" — no per-region route, no per-caller variant |
-| D-3 | Response is JSON with `message`, `language`, `requested_language`, `fallback` | GRT-001, GRT-002, GRT-005 | A stable schema on every path lets a caller detect fallback without parsing prose or branching on status code |
-| D-4 | Unsupported language returns **HTTP 200** with `fallback: true`, not an error status | GRT-005 | The G1 ruling on AMB-003 is fallback-with-notice: the end user still sees a greeting. An error status would contradict the approved criterion. See the divergence note below |
-| D-5 | Locales load once at startup from `config/locales.yml`; no per-request file read | GRT-004 | One immutable in-memory table for the process life makes identical text for every caller structural. Also keeps the request path free of I/O |
-| D-6 | Default language is `en`; its **text** comes from config like any other locale | GRT-002 | AMB-002 ruled English. The identifier is a constant; the text is not, honouring "exclusively from `config/locales.yml`" |
-| D-7 | `GET /health` reports 200 when the locale table loaded and 503 when it did not | GRT-006 | A service with no locale table cannot serve any greeting, so config-load state *is* availability. Stays inside AMB-004's availability-only scope — no metrics, no counters |
-| D-8 | Missing or malformed `config/locales.yml` is not masked by an in-code default | GRT-004, GRT-006 | The "exclusively from config" constraint has a consequence: there is no safe hardcoded greeting to fall back to. The service reports unhealthy instead of serving text from an unknown source |
-
-### Divergence note (D-4)
-
-`docs/DEMO-RUNBOOK.md:120` sketches an alternative where an unsupported
-language returns HTTP 400 with `UNSUPPORTED_LOCALE` and no fallback. The
-approved spec rules the opposite way (AMB-003, PO: Marco). **The approved
-spec governs.** If the tech lead prefers refusal semantics, that is a
-change to GRT-005 and must go back through the PO at G1 — it is not a
-plan-level decision to make here.
+---
 
 ## Project Structure
 
@@ -131,66 +97,92 @@ specs/001-greeting-service/
 │   └── greeting-api.yaml   # Phase 1 output — OpenAPI 3.1
 ├── checklists/
 │   └── requirements.md
-└── tasks.md             # Phase 2 — created by /speckit.tasks, NOT here
+└── tasks.md             # Phase 2 — created by /speckit.tasks, NOT by this command
 ```
 
 ### Source Code (repository root)
 
 ```text
+config/
+└── locales.yml          # Created at implementation time. Sole source of
+                         # greeting text, supported set, and default locale.
+
 src/
 ├── __init__.py
-├── main.py          # FastAPI app; GET /greeting, GET /health
-├── config.py        # loads and validates config/locales.yml at startup
-└── greetings.py     # language resolution + fallback decision
-
-config/
-└── locales.yml      # greeting text, keyed by language. Created during implementation
+├── config.py            # Load + validate locales.yml; normalise keys
+├── greetings.py         # Lookup with fallback; no I/O
+└── main.py              # FastAPI app: GET /greeting, GET /health
 
 tests/
-├── test_greeting.py # GRT-001, GRT-002, GRT-004, GRT-005
-└── test_health.py   # GRT-003, GRT-006
+├── test_greeting.py     # GRT-001, GRT-004, GRT-009
+├── test_defaults.py     # GRT-002
+├── test_fallback.py     # GRT-005, GRT-006
+├── test_config.py       # GRT-010
+├── test_api.py          # GRT-003
+└── test_health.py       # GRT-007, GRT-008
 ```
 
-**Structure Decision**: Single project, flat `src/` with three modules.
-The template's `models/ services/ cli/ lib/` layout is deliberately not
-used: there is no persistence, no CLI, and one entity. Four package
-directories for ~150 lines of code would be structure without content.
-`config/` sits at repository root rather than inside `src/` because the
-locale table is business-owned data (AMB-001), not application code.
+**Structure Decision**: single-project layout, driven by an existing constraint rather than preference — `pytest.ini` documents that tests import the service as `from src.main import app`, so the app must live at `src/main.py`. `src/` and `tests/` already exist and are empty. The split between `config.py` (all file I/O) and `greetings.py` (pure lookup) exists so that fallback and case-matching logic — GRT-005, GRT-006, GRT-009 — can be tested without touching the filesystem, while `config.py` carries the exclusivity constraint in one auditable place.
 
-## Test Strategy
+---
 
-Article II.1 requires every criterion to be covered by a test declaring
-`Implements: GRT-###`. This is the mapping `scripts/spec_drift.py` will
-verify; it turns the gate from red (0/6) to green.
+## Design Decisions by Criterion
 
-| Criterion | Covering test | Asserts |
-|---|---|---|
-| GRT-001 | `test_greeting.py::test_supported_language_returns_that_language` | Requesting a supported language returns that language's text, `fallback` false |
-| GRT-002 | `test_greeting.py::test_no_preference_returns_default_english` | Omitting `lang` returns the English text, `language` is `en` |
-| GRT-003 | `test_health.py::test_single_interface_serves_all_callers` | One endpoint answers callers regardless of origin; no per-region route exists |
-| GRT-004 | `test_greeting.py::test_same_language_same_text_for_every_caller` | Repeated and differing callers get byte-identical text for one language |
-| GRT-005 | `test_greeting.py::test_unsupported_language_falls_back_and_says_so` | Unsupported language returns 200, English text, `fallback` true, `requested_language` echoed; identical on repeat |
-| GRT-006 | `test_health.py::test_health_reports_available` | Health reports available when the locale table loaded |
+Every criterion is mapped to the component that satisfies it and the test module that proves it. No criterion is unassigned; no component exists without a criterion.
 
-Test-first, per CLAUDE.md: each annotated test is written before or
-alongside the implementation it covers. Tests drive the app in-process
-through `TestClient`, so CI needs no running server.
+| Criterion | Design decision | Component | Test module |
+|---|---|---|---|
+| GRT-001 | `GET /greeting?locale=<id>` returns the configured text for a supported locale | `main.py`, `greetings.py` | `test_greeting.py` |
+| GRT-002 | Omitted `locale` resolves to the config's `default` key | `greetings.py` | `test_defaults.py` |
+| GRT-003 | One HTTP endpoint, no per-application variation or client-specific route | `main.py` | `test_api.py` |
+| GRT-004 | Lookup is a pure function of locale — no caller identity is read, so identical input yields identical text by construction | `greetings.py` | `test_greeting.py` |
+| GRT-005 | Unknown locale returns HTTP 200 with the default-language greeting, never 4xx | `greetings.py`, `main.py` | `test_fallback.py` |
+| GRT-006 | Response carries `fallback: true` and `requested_locale`, so substitution is detectable without reading `message` | `main.py` | `test_fallback.py` |
+| GRT-007 | `GET /health` reports service readiness | `main.py` | `test_health.py` |
+| GRT-008 | Health is derived from config load state: 200 when locales loaded, 503 when not | `config.py`, `main.py` | `test_health.py` |
+| GRT-009 | Locale keys normalised to lowercase at load and lookup, so case never causes a fallback | `config.py`, `greetings.py` | `test_greeting.py` |
+| GRT-010 | Supported set and default both read from `config/locales.yml`; no greeting literal in `src/` | `config.py` | `test_config.py` |
 
-**Note on GRT-003**: "a single interface" is a negative claim — that no
-second, per-region interface exists. The test asserts the served route
-set, which is the strongest mechanical check available. A reviewer, not
-a test, is the real guard against a second interface appearing later.
+**The load-time normalisation choice (GRT-009) is worth flagging for G2.** Keys are lowercased once when the file is read, not on every request. That makes case-insensitivity a property of the loaded data rather than of each call site, so a future endpoint cannot accidentally reintroduce case sensitivity. The cost is that `config/locales.yml` can be authored in natural `fr-FR` casing while lookups compare lowercased — the response echoes the **configured** spelling, not the caller's, so `locale` in the payload is always canonical.
 
-## Complexity Tracking
+---
 
-No Constitution Check violations. No entries.
+## Response Shape — the G2 decision the spec delegated
 
-## Phase Status
+AMB-005 was resolved at G1 as: JSON payload carrying the greeting text, the language served, and the fallback indicator, with **exact field naming explicitly delegated to G2**. This plan is that decision point. Proposed:
 
-- [x] Phase 0 — Research complete → [research.md](./research.md)
-- [x] Phase 1 — Design complete → [data-model.md](./data-model.md), [contracts/greeting-api.yaml](./contracts/greeting-api.yaml), [quickstart.md](./quickstart.md)
-- [x] **G2 — Tech lead approval of this plan** (constitution Art. III.2) — Dana, 2026-08-12
-- [x] Phase 2 — Task breakdown → [tasks.md](./tasks.md), 4 stories, 18 tasks
-- [ ] Implementation — unblocked; start at Story S1
-- [ ] G3 — Merge authority: human review under branch protection (Art. III.3)
+```json
+{ "message": "Bonjour !", "locale": "fr-FR", "requested_locale": "fr-FR", "fallback": false }
+```
+
+- `message` — the greeting text (GRT-001).
+- `locale` — the language actually served, in its configured spelling (GRT-006).
+- `requested_locale` — what the caller asked for; echoes `locale` on a hit, differs on a fallback. Present so a caller can log the gap, which the AMB-001 ruling explicitly wanted.
+- `fallback` — boolean; the machine-readable substitution flag (GRT-006). A boolean rather than inferring from `locale != requested_locale`, so callers need no comparison logic.
+
+All four fields are always present, including when `locale` was omitted from the request. A stable key set is easier for callers to consume than a conditional one, and it means `fallback` is never absent-and-therefore-falsy.
+
+**This was the one place G2 approval carried a decision the spec did not already make, and it is now settled.** Approved as proposed at G2 on 2026-08-12 (Tech Lead: Dana): the four-field payload above is the binding integration contract. The narrower alternative — `message` + `locale` only, with fallback inferred from `locale != requested_locale` — was available and not taken, so `fallback` stays an explicit boolean and callers need no comparison logic. Changing these names now is a contract change affecting every calling application, not a refactor.
+
+---
+
+## Phase 0 — Research
+
+**Output**: [research.md](./research.md) — resolves the technical unknowns this plan opened (YAML load strategy, health semantics under FastAPI, fallback status code, config-exclusivity enforcement). No `NEEDS CLARIFICATION` markers remain in Technical Context.
+
+## Phase 1 — Design & Contracts
+
+**Outputs**:
+- [data-model.md](./data-model.md) — entities, the `config/locales.yml` schema, validation rules, load-state transitions.
+- [contracts/greeting-api.yaml](./contracts/greeting-api.yaml) — OpenAPI 3.1 for both endpoints.
+- [quickstart.md](./quickstart.md) — runnable validation: start the service, exercise each criterion, run the three gates.
+
+## Phase 2 — Tasks
+
+**Not produced by this command**, but generated and approved under the same G2 ruling. [tasks.md](./tasks.md) carries 4 stories and 21 tasks in the house format (`- [ ] T<s>.<n> <title> (GRT-###) [P1..P4]`) parsed by `scripts/gh_sync.py`. Implementation may now proceed against it.
+
+---
+
+## Post-Design Constitution Re-Check
+
+Re-evaluated after Phase 1 (right-hand column of the Constitution Check table above). No new violations. Design introduces no new dependency, no persistence, no change to any file constitution Art. IV.3 puts off-limits, and no criterion beyond the ten approved at G1.

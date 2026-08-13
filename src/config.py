@@ -1,60 +1,105 @@
-"""Locale table, loaded from config/locales.yml.
+"""Locale catalog loading — the only module in src/ that touches the disk.
 
-That file is the only source of greeting text (plan.md design D-5, research
-R-6). Nothing here supplies a greeting, not even as a last-resort default:
-a code-side fallback would quietly break GRT-004, since some deployments
-would answer from config and others from source with nothing to reveal
-which. When the config cannot supply a usable table, this module raises
-and the service reports itself unavailable instead of inventing text.
+All greeting content comes from config/locales.yml and nowhere else. There is
+deliberately no fallback string anywhere in this package: a safety-net literal
+would satisfy the greeting tests while silently breaking the config-exclusivity
+constraint and masking the very state the health signal exists to expose
+(specs/001-greeting-service/research.md R-4).
+
+A load failure is captured, not raised. The service must be able to start and
+report that it cannot greet — a crash would leave nothing running to report it.
 """
 
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional
 
 import yaml
 
-CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "locales.yml"
-
-# The identifier is a constant; its text is not (AMB-002 ruling, design D-6).
-DEFAULT_LANGUAGE = "en"
+ROOT = Path(__file__).resolve().parents[1]
+CONFIG_PATH = ROOT / "config" / "locales.yml"
 
 
-class LocaleConfigError(RuntimeError):
-    """config/locales.yml cannot supply a usable locale table."""
+@dataclass(frozen=True)
+class LocaleCatalog:
+    """The whole of the service's data, built once at startup.
 
-
-def load_locales(path: Optional[Path] = None) -> Dict[str, str]:
-    """Read and validate the locale table.
-
-    Validation rules are data-model.md's; each maps to a way the service
-    could otherwise appear healthy while serving nothing usable.
+    `greetings` and `display_names` are keyed by the NORMALISED (lowercased)
+    locale. Folding happens here and only here, so no call site can
+    reintroduce case sensitivity by forgetting to fold.
     """
-    path = path or CONFIG_PATH
 
+    default: str = ""
+    greetings: dict[str, str] = field(default_factory=dict)
+    display_names: dict[str, str] = field(default_factory=dict)
+    loaded: bool = False
+    error: str | None = None
+
+    @property
+    def default_display(self) -> str:
+        """The default locale in its configured spelling."""
+        return self.display_names.get(self.default, self.default)
+
+
+def _failed(reason: str) -> LocaleCatalog:
+    return LocaleCatalog(loaded=False, error=reason)
+
+
+def load_catalog(path: Path = CONFIG_PATH) -> LocaleCatalog:
+    """Build the catalog from `path`, or return a not-loaded catalog saying why.
+
+    Validation follows specs/001-greeting-service/data-model.md. Every failure
+    path yields the same observable outcome — `loaded=False` — because the
+    service's behaviour does not vary by which way the config was wrong.
+    """
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except FileNotFoundError as exc:
-        raise LocaleConfigError("{} not found".format(path)) from exc
+    except FileNotFoundError:
+        return _failed(f"{path.name} not found")
+    except OSError as exc:
+        return _failed(f"{path.name} unreadable: {exc}")
     except yaml.YAMLError as exc:
-        raise LocaleConfigError("{} is not valid YAML".format(path)) from exc
+        return _failed(f"{path.name} is not valid YAML: {exc}")
 
-    locales = (raw or {}).get("locales") if isinstance(raw, dict) else None
-    if not isinstance(locales, dict) or not locales:
-        raise LocaleConfigError("{} defines no locales".format(path))
+    if not isinstance(raw, dict):
+        return _failed(f"{path.name} must contain a mapping at the top level")
 
-    for language, message in locales.items():
-        # An empty message would satisfy "a greeting was returned"
-        # mechanically while showing the end user nothing — the silent
-        # failure GRT-005's fallback notice exists to prevent.
-        if not isinstance(message, str) or not message.strip():
-            raise LocaleConfigError(
-                "{}: locale '{}' has no message text".format(path, language)
-            )
+    entries = raw.get("locales")
+    if not isinstance(entries, dict) or not entries:
+        return _failed(f"{path.name} must define a non-empty 'locales' mapping")
 
-    if DEFAULT_LANGUAGE not in locales:
-        # Without it, GRT-002 and the GRT-005 fallback have no target.
-        raise LocaleConfigError(
-            "{}: default language '{}' is missing".format(path, DEFAULT_LANGUAGE)
+    greetings: dict[str, str] = {}
+    display_names: dict[str, str] = {}
+    for name, text in entries.items():
+        # A configured locale with no text behind it is not supported. Dropping
+        # it here is what makes requests for it fall back (GRT-005) instead of
+        # returning an empty greeting.
+        if not isinstance(name, str) or not isinstance(text, str) or not text:
+            continue
+        key = name.lower()
+        greetings[key] = text
+        display_names[key] = name
+
+    if not greetings:
+        return _failed(f"{path.name} defines no locale with greeting text")
+
+    default = raw.get("default")
+    if not isinstance(default, str) or not default:
+        return _failed(f"{path.name} must define a 'default' locale")
+
+    default_key = default.lower()
+    if default_key not in greetings:
+        # Half-working is worse than unhealthy: with an absent default, both
+        # the no-preference path and the fallback path would resolve to
+        # nothing at request time.
+        return _failed(
+            f"default locale '{default}' is not among the configured locales"
         )
 
-    return dict(locales)
+    return LocaleCatalog(
+        default=default_key,
+        greetings=greetings,
+        display_names=display_names,
+        loaded=True,
+    )
