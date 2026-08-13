@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: "Gate 0 — constitution mirror matches memory/"
+        run: python scripts/constitution_check.py
+
       - name: "Gate 1 — spec ⇄ test traceability"
         run: python scripts/spec_drift.py
 
