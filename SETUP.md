@@ -7,7 +7,7 @@ Actions and branch protection work on free private repos).
 
 | Tool | Purpose | Install |
 |------|---------|---------|
-| Python 3.11+ | service, tests, scripts | python.org or pyenv |
+| Python 3.12 | service, tests, scripts | python.org or pyenv (`.python-version` pins it) |
 | Git | version control, PR gates | git-scm.com |
 | gh (GitHub CLI) | issue sync, auth | `brew install gh`, then `gh auth login` |
 | uv (includes uvx) | runs the Spec Kit CLI | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
@@ -16,17 +16,36 @@ Actions and branch protection work on free private repos).
 Required — the virtual environment (agents are pinned to it via CLAUDE.md):
 ```bash
 cd ~/_work_/sdd-demo
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python -m pytest tests/ -q          # 6 passed
-python scripts/spec_drift.py        # PASS: spec and tests agree
-python scripts/gh_sync.py           # DRY RUN of the issue batch
+python3.12 -m venv .venv           # NOT `python3` — see the check below
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python --version         # MUST print 3.12.x — stop here if it does not
+.venv/bin/python -m pytest -q      # 11 passed
+.venv/bin/python scripts/constitution_check.py   # PASS: mirror matches memory/
+.venv/bin/python scripts/spec_drift.py           # PASS: spec and tests agree
+.venv/bin/python scripts/gh_sync.py              # DRY RUN of the issue batch
 ```
 
-Optional verification — the tests already exercise the service in-process;
-this only proves it binds a real port:
+**Do not skip the version check.** `python3` is whatever the OS ships —
+on stock macOS that is 3.9 — while CI pins 3.12
+(`.github/workflows/spec-drift.yml`) and the plan specifies it. A venv
+built from `python3` produces local green runs that are not evidence of a
+CI pass: code using 3.10+ syntax fails only in CI, and code written to
+3.9 limits passes both while silently contradicting the documented
+target. `.python-version` pins the interpreter for pyenv and uv; it does
+not bind a bare `python3 -m venv`, which is why the check is manual.
+
+Dependencies are pinned with `==` in `requirements.txt`; the refresh
+procedure is a comment at the top of that file. Bump versions on their
+own PR so a regression stays bisectable.
+
+Commands here use `.venv/bin/python` explicitly rather than activating
+the venv, matching CLAUDE.md and removing any doubt about which
+interpreter ran.
+
+Optional verification — the tests already exercise the service
+in-process; this only proves it binds a real port:
 ```bash
-uvicorn src.greeting_service.app:app --reload   # then GET /greet?locale=fr-FR
+.venv/bin/uvicorn src.main:app --reload   # then GET /greeting?lang=fr
 ```
 
 ## 2. GitHub — repo, workflow, and the enforcement chain (in this order)

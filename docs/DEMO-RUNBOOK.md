@@ -22,11 +22,16 @@ export SPECKIT_REF="vX.Y.Z"   # record the tag you pinned in this file
 ### 0.2 Repo environment
 ```bash
 cd ~/_work_/sdd-demo
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+python3.12 -m venv .venv           # NOT `python3` — stock macOS ships 3.9
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python --version         # MUST print 3.12.x — fix before demo day
 ```
 The venv is mandatory, not hygiene — CLAUDE.md pins the agent to
 .venv/bin/python so a multi-Python machine can't derail a live session.
+The version check matters for the same reason: CI pins 3.12, so a venv
+built from a stray `python3` gives you local greens that prove nothing
+about the check on screen in Act 8. Dependencies are pinned in
+requirements.txt; `.python-version` pins the interpreter for pyenv/uv.
 
 ### 0.3 Branch geography
 | Branch | Role |

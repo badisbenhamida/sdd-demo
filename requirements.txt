@@ -1,5 +1,19 @@
-fastapi
-httpx
-pyyaml
-pytest
-uvicorn
+# Pinned deliberately. This repo's claim is mechanical reproducibility, and
+# an unpinned set means a green gate today and an unexplained red tomorrow
+# with no change in the repo.
+#
+# Direct dependencies only. Transitive versions are left to the resolver;
+# if you need those frozen too, generate a lock file (pip-compile / uv pip
+# compile) rather than hand-listing them here.
+#
+# Refresh procedure:
+#   1. .venv/bin/pip install -U -r requirements.txt   # ignore the pins once
+#   2. .venv/bin/pip freeze | grep -iE '^(fastapi|httpx|pytest|PyYAML|uvicorn)='
+#   3. paste the result below, run the three gates (SETUP.md §5), commit
+#      the bump on its own PR so a regression is bisectable.
+
+fastapi==0.128.8
+httpx==0.28.1
+pytest==8.4.2
+PyYAML==6.0.3
+uvicorn==0.39.0
