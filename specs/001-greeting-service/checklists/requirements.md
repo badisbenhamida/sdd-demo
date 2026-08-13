@@ -2,6 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-08-12
+**Last validated**: 2026-08-12, after Gate G1 approval
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -34,31 +35,50 @@
 - [X] Every acceptance criterion carries a stable `GRT-###` ID
 - [X] Every criterion traces to a BRD requirement (Traces to column)
 - [X] Every BRD requirement is covered by at least one criterion (Traceability Summary)
-- [X] Criteria are harvestable by `spec_drift.py` — verified: 8 active, 0 retired
+- [X] Criteria are harvestable by `spec_drift.py` — verified: 10 active, 0 retired
 - [X] Every BRD gap is recorded in the Ambiguity Log, not assumed away
 
+## Gate G1 (constitution Art. III.1)
+
+- [X] Every Ambiguity Log item carries an explicit ruling
+- [X] Every Ambiguity Log item status is **Resolved** — 8 of 8
+- [X] Resolver recorded on every item (PO: Marco, 2026-08-12)
+- [X] Out-of-scope rulings are recorded, not dropped (AMB-003, AMB-004, AMB-007, AMB-008 → Scope Boundary)
+- [X] Spec status is **Approved**
+- [X] No unresolved-status token remains in spec.md — verified: 0 matches
+      (the literal token is deliberately not written out here, so that a
+      repo-wide grep for it stays clean)
+
 ## Notes
+
+**Gate status**: **G1 passed** 2026-08-12, PO: Marco. All eight Ambiguity Log
+items resolved with the proposed resolution accepted in each case. Planning may
+begin; Gate G2 (plan approval, Art. III.2) is still ahead.
+
+**Criteria count changed at G1**: 8 → 10. The rulings on AMB-006 and AMB-002
+created two testable obligations that no existing criterion carried, so GRT-009
+(case-insensitive language matching) and GRT-010 (configuration as the single
+source of truth) were added. Existing IDs were not renumbered — Art. I.2.
+
+**Criteria sharpened at G1**: GRT-002, GRT-005, GRT-006, GRT-008. Wording only;
+IDs unchanged. GRT-005 and GRT-006 moved from a generic "defined outcome" to the
+fallback behaviour the AMB-001 ruling requires.
 
 **On "no [NEEDS CLARIFICATION] markers"** — this passes by mechanism, not by
 luck. This project routes underspecification into the Ambiguity Log, which
 constitution Art. III.1 makes a G1 gate item, rather than into inline markers
-the stock template caps at three. The BRD produced 8 gaps; all 8 are logged
-with a question, a rationale, and a proposed resolution.
+the stock template caps at three.
 
-**On "requirements are testable and unambiguous"** — passes at the level the
-BRD supports. GRT-002, GRT-005, and GRT-006 are testable as written but their
-concrete shape depends on AMB-001 and AMB-002. They are marked *contingent* in
-the spec. G1 sharpens their wording; it does not replace them, and the IDs are
-stable across that change (Art. I.2).
+**On "requirements are testable and unambiguous"** — this now passes fully. In
+the pre-G1 draft, GRT-002, GRT-005, and GRT-006 were flagged *contingent* on
+unresolved rulings. Those rulings landed, and the contingency note has been
+removed from the spec.
 
-**On implementation detail** — AMB-003 and AMB-005 propose HTTP and a
-structured payload. These sit in the Ambiguity Log as *proposals awaiting a
-business ruling*, deliberately not in the criteria, so no criterion above
-presupposes a transport or a payload shape.
+**On implementation detail** — the G1 rulings name HTTP (AMB-003) and JSON
+(AMB-005). These are business rulings on the integration contract recorded in
+the Ambiguity Log; no criterion in the table presupposes a transport or a
+payload shape, so the criteria remain technology-agnostic and the response field
+names are explicitly delegated to Gate G2.
 
-**Gate status**: this spec is **not approved**. 16 `PENDING HUMAN APPROVAL`
-tokens remain by design (8 log items × summary row + detail section). Do not
-proceed to `/speckit.plan` until a human resolves the Ambiguity Log at G1.
-
-**`spec_drift.py` full run currently exits 1** — 8 criteria, 0 covered. That is
+**`spec_drift.py` full run currently exits 1** — 10 criteria, 0 covered. That is
 the burndown starting state before any test exists, not a spec defect.

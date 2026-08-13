@@ -6,9 +6,25 @@
 
 **Created**: 2026-08-12
 
-**Status**: Draft — **PENDING G1** (spec approval). Per constitution Art. III.1, a human (PO/BA) must approve this spec *including resolution of every item in the Ambiguity Log* before planning begins.
+**Status**: **Approved — Gate G1 passed** 2026-08-12 by **PO: Marco**. Every Ambiguity Log item is Resolved; nothing is pending. Planning may begin (constitution Art. III.1 satisfied; Art. III.2 / Gate G2 still ahead).
 
 **Input**: Transform BRD-2026-014 into a specification: EARS notation, stable `GRT-###` criterion IDs, a traceability column to BRD requirements, and an Ambiguity Log covering every gap. Invent nothing the BRD does not imply.
+
+---
+
+## Gate G1 — Spec approval record
+
+| Field | Value |
+|---|---|
+| Gate | G1 — Spec approval (constitution Art. III.1) |
+| Outcome | **Approved** |
+| Resolver | PO: Marco |
+| Date | 2026-08-12 |
+| Ambiguity Log | 8 of 8 items Resolved, 0 pending |
+| Ruling basis | The PO accepted the agent's proposed resolution on all eight items, and ruled on the two points those proposals had deliberately left open to the business (AMB-002 launch language set, AMB-005 field naming). |
+| Criteria added by this gate | GRT-009, GRT-010 — see "Criteria added at G1" below |
+
+Criteria wording sharpened by these rulings: GRT-002, GRT-005, GRT-006, GRT-008. Per Art. I.2 the IDs are unchanged; sharpening a criterion never renumbers it.
 
 ---
 
@@ -18,6 +34,13 @@ Carried verbatim from BRD §3. The following are **out of scope** and no criteri
 
 - Personalization (user names, time-of-day variants)
 - Translation workflow / content management
+
+Ruled out of scope at G1, recorded rather than dropped (per the PO's instruction that an out-of-scope ruling stays on the record):
+
+- **Authentication and network exposure policy** — platform-layer concern, not this service's responsibility (AMB-003).
+- **Metrics, log aggregation, and alerting** — deferred beyond this feature; the health indicator alone satisfies BR-4 for this release (AMB-004).
+- **Contractual availability or latency targets** — none for this release; calling applications own their own timeout and degradation behaviour (AMB-008).
+- **Inferring language preference from end-user context** (browser or device settings) — the calling application resolves preference and passes it explicitly (AMB-007).
 
 ---
 
@@ -35,49 +58,51 @@ A customer-facing regional application needs to show a greeting to a user who ha
 
 1. **Given** the service supports the requested language, **When** a regional application requests a greeting for that language, **Then** the greeting returned is in that language.
 2. **Given** two different regional applications, **When** both request a greeting for the same language, **Then** both receive the same greeting text.
-3. **Given** a request that names no language preference, **When** the application requests a greeting, **Then** a greeting in the configured default language is returned. *(Contingent on AMB-002.)*
+3. **Given** a request that names no language preference, **When** the application requests a greeting, **Then** a greeting in the configured default language is returned.
+4. **Given** a supported language identifier written in a different letter case, **When** a regional application requests a greeting for it, **Then** it is treated as that supported language.
 
 ---
 
 ### User Story 2 - Calling application meets an unsupported language (Priority: P2)
 
-A regional application requests a greeting for a language the service does not carry. Rather than breaking or returning something misleading, the service responds in a defined way the calling application can detect and act on programmatically.
+A regional application requests a greeting for a language the service does not carry. Per the G1 ruling on AMB-001, the end user still sees a greeting — the service substitutes the default language and marks the response so the calling application can detect that a substitution happened and log the gap.
 
 **Why this priority**: BR-3 is a stated requirement, and unhandled unsupported languages would surface to end users as broken UI. It ranks below P1 because a service that only ever sees supported languages still delivers value.
 
-**Independent Test**: Request a greeting for a language known not to be supported and confirm the response is the defined outcome, is distinguishable from a successful greeting without inspecting the text, and is not an unhandled failure.
+**Independent Test**: Request a greeting for a language known not to be supported, confirm a default-language greeting is returned, and confirm the response is marked as a fallback in a way detectable without reading the greeting text.
 
 **Acceptance Scenarios**:
 
-1. **Given** a language the service does not support, **When** a regional application requests a greeting for it, **Then** the service returns its defined unsupported-language outcome rather than failing unhandled.
-2. **Given** that outcome, **When** the calling application inspects it, **Then** it can determine programmatically that the language was unsupported. *(Shape contingent on AMB-001.)*
+1. **Given** a language the service does not support, **When** a regional application requests a greeting for it, **Then** a greeting in the configured default language is returned rather than an error or an unhandled failure.
+2. **Given** that response, **When** the calling application inspects it, **Then** it can determine programmatically that a fallback occurred and which language was actually served, without parsing the greeting text.
 
 ---
 
 ### User Story 3 - Operations verifies service health (Priority: P3)
 
-An operations engineer, or an automated monitor acting for them, needs to confirm at any time whether the Greeting Service is able to do its job — without making a greeting request and guessing from the result.
+An operations engineer, or an automated monitor acting for them, needs to confirm at any time whether the Greeting Service is able to do its job — without making a greeting request and guessing from the result. Per the G1 ruling on AMB-004, health reflects whether greeting content actually loaded, not merely whether the process is running.
 
 **Why this priority**: BR-4 and BRD §4 both require it, and it gates production readiness. It ranks last because it delivers no end-user value on its own.
 
-**Independent Test**: Query the health indicator while the service is able to serve greetings and confirm it reports healthy; put the service in a state where it cannot serve greetings and confirm it reports unhealthy.
+**Independent Test**: Query the health indicator while greeting content is loaded and confirm it reports healthy; start the service with greeting content that cannot be loaded and confirm it reports unhealthy.
 
 **Acceptance Scenarios**:
 
-1. **Given** a running service able to serve greetings, **When** operations queries the health indicator, **Then** it reports healthy.
-2. **Given** a service that cannot serve greetings, **When** operations queries the health indicator, **Then** it reports unhealthy.
+1. **Given** a running service whose greeting content has loaded, **When** operations queries the health indicator, **Then** it reports healthy.
+2. **Given** a running service whose greeting content failed to load, **When** operations queries the health indicator, **Then** it reports unhealthy — a running process is not by itself healthy.
 
 ---
 
 ### Edge Cases
 
-Listed because the BRD leaves them undefined. Each is carried into the Ambiguity Log rather than resolved here by assumption.
+Each was undefined in the BRD and is now settled by the G1 ruling shown.
 
-- A request naming a language the service does not support → AMB-001.
-- A request naming no language at all → AMB-002.
-- A language identifier in an unexpected form (`fr` vs `fr-FR`, differing case) → AMB-006.
-- The service starts but its greeting content cannot be loaded — can it be simultaneously "running" and unable to greet? → AMB-004, GRT-008.
-- A language that is configured but has no greeting text behind it → AMB-002.
+- A request naming a language the service does not support → default-language greeting, marked as a fallback (AMB-001, GRT-005, GRT-006).
+- A request naming no language at all → configured default language (AMB-002, GRT-002).
+- A language identifier differing only in letter case → matched case-insensitively (AMB-006, GRT-009).
+- A language identifier in an unexpected form → language-and-region identifiers are the contract; anything not in the supported set is treated as unsupported and falls back (AMB-006, GRT-005).
+- The service starts but greeting content cannot be loaded → the service is unhealthy; a running process is not sufficient (AMB-004, GRT-008).
+- A language configured but with no greeting text behind it → it is not in the supported set; requests for it fall back (AMB-002, GRT-010).
 
 ---
 
@@ -93,21 +118,23 @@ Every criterion is written in EARS notation and carries a stable ID. Per constit
 | GRT-002 | When a calling application requests a greeting without naming a language preference, the Greeting Service shall return a greeting in the configured default language. | BR-1 |
 | GRT-003 | The Greeting Service shall expose one interface through which any regional application can retrieve a greeting. | BR-2, §4 |
 | GRT-004 | When two calling applications request a greeting for the same language, the Greeting Service shall return identical greeting text to both. | BR-2, §1 |
-| GRT-005 | If a calling application requests a greeting for a language the Greeting Service does not support, then the Greeting Service shall return its defined unsupported-language outcome and shall not fail unhandled. | BR-3 |
-| GRT-006 | If the Greeting Service returns its unsupported-language outcome, then that outcome shall identify the unsupported-language condition in a machine-readable form, distinguishable from a successful greeting without inspecting the greeting text. | BR-3 |
+| GRT-005 | If a calling application requests a greeting for a language the Greeting Service does not support, then the Greeting Service shall return a greeting in the configured default language rather than an error, and shall not fail unhandled. | BR-3 |
+| GRT-006 | If the Greeting Service substitutes the default language for an unsupported one, then the response shall indicate in machine-readable form that a fallback occurred and which language was served, distinguishable without inspecting the greeting text. | BR-3 |
 | GRT-007 | The Greeting Service shall expose a health indicator that operations can query to determine whether the service is able to serve greetings. | BR-4, §4 |
-| GRT-008 | While the Greeting Service is unable to serve greetings, the health indicator shall report unhealthy. | BR-4 |
+| GRT-008 | While the Greeting Service's greeting content is not loaded, the health indicator shall report unhealthy. | BR-4 |
+| GRT-009 | When a calling application requests a greeting using a supported language identifier that differs only in letter case, the Greeting Service shall treat it as that supported language. | BR-1 |
+| GRT-010 | The Greeting Service shall determine its supported language set and its default language from configuration, so that adding or changing a language requires no change to any calling application. | BR-1, BR-2, §1 |
+
+**Criteria added at G1**: GRT-009 and GRT-010 did not exist in the draft. They are testable obligations created by the rulings on AMB-006 (case-insensitive matching) and AMB-002 (configuration as the single source of truth). Recording them as criteria rather than as prose keeps them inside the traceability gate — an obligation not in this table is an obligation `spec_drift.py` cannot enforce.
 
 **Note on requirement IDs**: this spec deliberately does not carry the stock template's parallel `FR-###` list. Two competing requirement-ID systems in one spec would break the single-authority rule in CLAUDE.md ("when the two conflict, the criterion ID is authoritative"). `GRT-###` is the only requirement ID here.
-
-**Contingent criteria**: GRT-002, GRT-005, and GRT-006 are stated at the level of precision the BRD actually supports. Their concrete shape depends on Ambiguity Log rulings (AMB-001, AMB-002) and the wording above may be sharpened — not replaced — at G1. The IDs are stable regardless.
 
 ### Key Entities
 
 - **Greeting**: the text returned to a calling application, in one language. Sourced centrally so that all applications share tone (BRD §1). Carries no personalization (BRD §3).
-- **Language**: the identifier a calling application uses to ask for a greeting, and the key by which greeting text is selected. Its exact form is open — AMB-006.
-- **Supported language set**: the languages for which the service holds greeting text. Its membership at launch and its source of truth are open — AMB-002.
-- **Health indicator**: the signal operations queries to learn whether the service can serve greetings (BR-4).
+- **Language**: the identifier a calling application uses to ask for a greeting, and the key by which greeting text is selected. Language-and-region form, matched case-insensitively, so regional variants are distinguishable (AMB-006).
+- **Supported language set**: the languages for which the service holds greeting text. Determined by configuration, not by code (AMB-002, GRT-010). At launch: **en-US** (default), **fr-FR**, **de-DE**, **ja-JP**.
+- **Health indicator**: the signal operations queries to learn whether the service can serve greetings. Reflects greeting-content load state, not process liveness alone (AMB-004, BR-4).
 
 ---
 
@@ -118,27 +145,25 @@ Derived from BRD §4 and the business context in §1. Technology-agnostic and ve
 - **SC-001**: A regional application can retrieve a greeting for a supported language through the standard interface without any application-specific integration work. *(BRD §4, BR-2)*
 - **SC-002**: Operations can determine whether the service is able to serve greetings at any time, without issuing a greeting request and inferring health from it. *(BRD §4, BR-4)*
 - **SC-003**: For any given language, every regional application receives identical greeting text — zero divergence in tone across applications. *(BRD §1, BR-2)*
-- **SC-004**: A calling application can distinguish an unsupported-language response from a successful greeting programmatically, with no text parsing. *(BR-3)*
+- **SC-004**: A calling application can determine programmatically whether the greeting it received was in the language it asked for or was a default-language fallback, with no text parsing. *(BR-3 — restated at G1 under the AMB-001 ruling: the distinction is fallback-vs-exact, not error-vs-success.)*
 - **SC-005**: Adding or changing a greeting for a language requires no change to any calling application. *(BRD §1 — eliminating duplicated translation cost)*
 
 ---
 
 ## Ambiguity Log
 
-**Every item below is a gap in BRD-2026-014, not a design preference.** Each carries a question for the business and a proposed resolution the agent believes defensible. **No proposed resolution is in force.** Per constitution Art. III.1, a human (PO/BA) rules on every item before planning; per Art. IV.2 these proposals are drafts.
+**All items are Resolved.** Every item below was a gap in BRD-2026-014, raised as a question for the business with a proposed resolution. At Gate G1 on 2026-08-12 the Product Owner ruled on all eight; the rulings below are **in force** and bind the plan and implementation stages. Nothing here is pending.
 
-The demo runbook's G1 script rules *against* the AMB-001 proposal below. That is expected — the proposal is the agent's honest recommendation, and the gate exists precisely so a human can overrule it.
-
-| ID | Gap in the BRD | Affected criteria | Status |
-|---------|----------------|-------------------|--------|
-| AMB-001 | Unsupported language: fail or fall back? | GRT-005, GRT-006 | PENDING HUMAN APPROVAL |
-| AMB-002 | Which languages at launch, and which is default? | GRT-001, GRT-002 | PENDING HUMAN APPROVAL |
-| AMB-003 | What is the "standard interface", and who may call it? | GRT-003 | PENDING HUMAN APPROVAL |
-| AMB-004 | What does "monitorable by operations" require? | GRT-007, GRT-008 | PENDING HUMAN APPROVAL |
-| AMB-005 | What is the response format and its fields? | GRT-001, GRT-006 | PENDING HUMAN APPROVAL |
-| AMB-006 | What form does a language identifier take? | GRT-001, GRT-005 | PENDING HUMAN APPROVAL |
-| AMB-007 | How does a caller convey the language preference? | GRT-001, GRT-002 | PENDING HUMAN APPROVAL |
-| AMB-008 | What availability or latency is the service held to? | (none — would add criteria) | PENDING HUMAN APPROVAL |
+| ID | Gap in the BRD | Affected criteria | Status | Resolved by |
+|---------|----------------|-------------------|--------|-------------|
+| AMB-001 | Unsupported language: fail or fall back? | GRT-005, GRT-006 | **Resolved** | PO: Marco, 2026-08-12 |
+| AMB-002 | Which languages at launch, and which is default? | GRT-002, GRT-010 | **Resolved** | PO: Marco, 2026-08-12 |
+| AMB-003 | What is the "standard interface", and who may call it? | GRT-003 | **Resolved** | PO: Marco, 2026-08-12 |
+| AMB-004 | What does "monitorable by operations" require? | GRT-007, GRT-008 | **Resolved** | PO: Marco, 2026-08-12 |
+| AMB-005 | What is the response format and its fields? | GRT-001, GRT-006 | **Resolved** | PO: Marco, 2026-08-12 |
+| AMB-006 | What form does a language identifier take? | GRT-005, GRT-009 | **Resolved** | PO: Marco, 2026-08-12 |
+| AMB-007 | How does a caller convey the language preference? | GRT-001, GRT-002 | **Resolved** | PO: Marco, 2026-08-12 |
+| AMB-008 | What availability or latency is the service held to? | (none — ruled no new criteria) | **Resolved** | PO: Marco, 2026-08-12 |
 
 ---
 
@@ -150,9 +175,11 @@ The demo runbook's G1 script rules *against* the AMB-001 proposal below. That is
 
 **Proposed resolution**: Option (b) — return the default-language greeting with an explicit indicator that a fallback occurred, so end users always see *something* while callers can still detect and log the gap.
 
-**Affected criteria**: GRT-005, GRT-006
+**Ruling**: **Accepted as proposed — option (b).** An unsupported language is a successful response carrying a default-language greeting plus an explicit fallback indicator, not an error. No calling application is required to implement error handling in order to display a greeting. The substitution must never be silent: the response states that a fallback occurred and which language was served.
 
-**Status**: PENDING HUMAN APPROVAL — **Resolved by**: _(unassigned)_
+**Affected criteria**: GRT-005, GRT-006 — both sharpened to state fallback rather than a generic "defined outcome".
+
+**Status**: **Resolved** — **Resolved by**: PO: Marco, 2026-08-12
 
 ---
 
@@ -164,9 +191,11 @@ The demo runbook's G1 script rules *against* the AMB-001 proposal below. That is
 
 **Proposed resolution**: A configuration file is the single source of truth for the supported set and the default, so languages can be added without a code change (supporting SC-005). Launch membership is a business decision and is not proposed here.
 
-**Affected criteria**: GRT-001, GRT-002
+**Ruling**: **Accepted as proposed, and the open half decided by the business.** Configuration is the single source of truth for both the supported set and the default — this becomes GRT-010. Launch membership, which the proposal correctly left to the business: **en-US, fr-FR, de-DE, ja-JP**, with **en-US as the default** when no preference is named. A language belongs to the supported set only if greeting text exists behind it; a configured entry with no text is not supported and falls back under AMB-001.
 
-**Status**: PENDING HUMAN APPROVAL — **Resolved by**: _(unassigned)_
+**Affected criteria**: GRT-002, GRT-010 (new)
+
+**Status**: **Resolved** — **Resolved by**: PO: Marco, 2026-08-12
 
 ---
 
@@ -178,9 +207,11 @@ The demo runbook's G1 script rules *against* the AMB-001 proposal below. That is
 
 **Proposed resolution**: A synchronous request/response network interface over HTTP. Authentication and network exposure are platform-layer concerns handled outside this service; record that as an explicit ruling rather than silence.
 
+**Ruling**: **Accepted as proposed.** The interface is a synchronous HTTP request/response API. Authentication and network exposure policy are **ruled out of scope** for this service — they are platform-layer concerns — and that out-of-scope ruling is recorded here and in the Scope Boundary rather than left as silence. This service does not implement authentication, and its criteria must not assume any.
+
 **Affected criteria**: GRT-003
 
-**Status**: PENDING HUMAN APPROVAL — **Resolved by**: _(unassigned)_
+**Status**: **Resolved** — **Resolved by**: PO: Marco, 2026-08-12
 
 ---
 
@@ -192,9 +223,11 @@ The demo runbook's G1 script rules *against* the AMB-001 proposal below. That is
 
 **Proposed resolution**: A queryable health indicator that reflects whether greeting content actually loaded — not merely whether the process is running. Metrics, log aggregation, and alerting are deferred beyond this feature unless operations states otherwise.
 
-**Affected criteria**: GRT-007, GRT-008
+**Ruling**: **Accepted as proposed.** A queryable health indicator satisfies BR-4 for this release, and it must reflect greeting-content load state — a process that is up but cannot serve greetings reports unhealthy. Metrics, log aggregation, and alerting are **ruled out of scope** for this feature and recorded in the Scope Boundary; they are deferred, not rejected, and may return as a later BRD amendment.
 
-**Status**: PENDING HUMAN APPROVAL — **Resolved by**: _(unassigned)_
+**Affected criteria**: GRT-007, GRT-008 — GRT-008 sharpened from "unable to serve greetings" to the content-load state that makes it testable.
+
+**Status**: **Resolved** — **Resolved by**: PO: Marco, 2026-08-12
 
 ---
 
@@ -206,9 +239,11 @@ The demo runbook's G1 script rules *against* the AMB-001 proposal below. That is
 
 **Proposed resolution**: A structured payload carrying at minimum the greeting text and the language it was served in, so callers can confirm what they got. Exact field names are a design decision for the plan stage, not a business ruling.
 
+**Ruling**: **Accepted as proposed.** The response is a structured JSON payload carrying at minimum the greeting text, the language actually served, and — under the AMB-001 ruling — the fallback indicator. The business ruling binds the *content* of the payload; **exact field naming is delegated to the plan stage (Gate G2)**, as the proposal asked. Field names are therefore not fixed by this spec and no criterion depends on them.
+
 **Affected criteria**: GRT-001, GRT-006
 
-**Status**: PENDING HUMAN APPROVAL — **Resolved by**: _(unassigned)_
+**Status**: **Resolved** — **Resolved by**: PO: Marco, 2026-08-12
 
 ---
 
@@ -220,9 +255,11 @@ The demo runbook's G1 script rules *against* the AMB-001 proposal below. That is
 
 **Proposed resolution**: Language-and-region identifiers, matched case-insensitively, so regional variants can be distinguished when the business needs them.
 
-**Affected criteria**: GRT-001, GRT-005
+**Ruling**: **Accepted as proposed.** Identifiers are language-and-region form and are matched case-insensitively, so a difference in letter case alone never causes a fallback. Case-insensitive matching becomes GRT-009. Any identifier not in the configured supported set — including a bare language code with no region — is unsupported and falls back under AMB-001.
 
-**Status**: PENDING HUMAN APPROVAL — **Resolved by**: _(unassigned)_
+**Affected criteria**: GRT-005, GRT-009 (new)
+
+**Status**: **Resolved** — **Resolved by**: PO: Marco, 2026-08-12
 
 ---
 
@@ -234,9 +271,11 @@ The demo runbook's G1 script rules *against* the AMB-001 proposal below. That is
 
 **Proposed resolution**: The calling application resolves the user's preference and passes it explicitly. The service does not infer preference from end-user context.
 
+**Ruling**: **Accepted as proposed.** The calling application resolves the end user's preference and passes it explicitly. Inferring preference from browser or device context is **ruled out of scope** and recorded in the Scope Boundary. "No preference given" therefore means the caller sent none, which is a well-defined, testable condition for GRT-002.
+
 **Affected criteria**: GRT-001, GRT-002
 
-**Status**: PENDING HUMAN APPROVAL — **Resolved by**: _(unassigned)_
+**Status**: **Resolved** — **Resolved by**: PO: Marco, 2026-08-12
 
 ---
 
@@ -248,18 +287,20 @@ The demo runbook's G1 script rules *against* the AMB-001 proposal below. That is
 
 **Proposed resolution**: No contractual target for this release; calling applications remain responsible for their own timeout and degradation behaviour. If the business disagrees, new criteria are added here before G1 rather than assumed later.
 
-**Affected criteria**: none currently — a ruling other than the proposal adds criteria
+**Ruling**: **Accepted as proposed — no contractual target for this release**, and therefore no criteria added. Calling applications own their own timeout and degradation behaviour. This is **ruled out of scope and recorded, not dropped**: the risk that a shared render-path dependency has no stated target was raised, considered, and accepted by the business. Revisiting it requires a BRD amendment, which would add criteria here.
 
-**Status**: PENDING HUMAN APPROVAL — **Resolved by**: _(unassigned)_
+**Affected criteria**: none — the ruling matches the proposal, so no criteria were added
+
+**Status**: **Resolved** — **Resolved by**: PO: Marco, 2026-08-12
 
 ---
 
 ## Assumptions
 
-Kept deliberately short. Where the BRD was silent on something material, the gap went to the Ambiguity Log for a human ruling rather than being assumed away here.
+Kept deliberately short. Where the BRD was silent on something material, the gap went to the Ambiguity Log for a human ruling rather than being assumed away here — and all eight are now ruled.
 
 - The BRD is approved and stable; requirement changes arrive as BRD amendments, and reach this spec by PR (constitution Art. I.3).
-- "Regional applications" are first-party applications within the organisation, not third parties. The BRD names no external consumer. *(Access is ruled on in AMB-003.)*
+- "Regional applications" are first-party applications within the organisation, not third parties. The BRD names no external consumer. *(Access ruled platform-layer in AMB-003.)*
 - Greeting text is authored and translated outside this feature — translation workflow is out of scope per BRD §3. This service serves existing text; it does not produce it.
 - No end-user personal data is involved: a greeting is selected by language alone, with personalization out of scope per BRD §3.
 
@@ -271,7 +312,7 @@ Every BRD requirement is covered by at least one criterion, and every criterion 
 
 | BRD requirement | Covered by |
 |-----------------|------------|
-| BR-1 — greeting appropriate to language preference | GRT-001, GRT-002 |
-| BR-2 — available to all regional applications | GRT-003, GRT-004 |
+| BR-1 — greeting appropriate to language preference | GRT-001, GRT-002, GRT-009, GRT-010 |
+| BR-2 — available to all regional applications | GRT-003, GRT-004, GRT-010 |
 | BR-3 — handle unsupported language | GRT-005, GRT-006 |
 | BR-4 — monitorable by operations | GRT-007, GRT-008 |
