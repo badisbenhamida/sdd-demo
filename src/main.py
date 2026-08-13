@@ -51,3 +51,24 @@ def get_greeting(lang: Optional[str] = Query(default=None)):
         "requested_language": greeting.requested_language,
         "fallback": greeting.fallback,
     }
+
+
+@app.get("/health")
+def get_health():
+    """Report whether the service is available (GRT-006).
+
+    Availability means the locale table loaded. A process accepting
+    connections but holding no table cannot serve any greeting, so
+    config-load state is not extra observability here — it *is*
+    availability (research R-5).
+
+    Deliberately reports nothing else. The AMB-004 ruling scoped this
+    release to an availability indication and deferred metrics,
+    per-language demand and structured logging to a separate BRD; a
+    request count or locale list here would be scope creep past an
+    approved gate.
+    """
+    if LOCALE_ERROR is not None:
+        return JSONResponse(status_code=503, content={"status": "unavailable"})
+
+    return {"status": "ok"}
