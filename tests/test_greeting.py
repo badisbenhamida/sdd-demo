@@ -85,3 +85,33 @@ def test_repeated_requests_do_not_drift(client):
                  for _ in range(5)]
 
     assert all(response == responses[0] for response in responses)
+
+
+# Implements: GRT-009
+#
+# GRT-009: "When a calling application requests a greeting using a supported
+# language identifier that differs only in letter case, the Greeting Service
+# shall treat it as that supported language."
+#
+# Ruled at G1 on AMB-006. The response echoes the CONFIGURED spelling, not the
+# caller's -- a caller asking for FR-fr gets locale "fr-FR" back, which is more
+# useful than a mirror of their own typo.
+
+
+@pytest.mark.parametrize("variant", ["fr-FR", "fr-fr", "FR-FR", "FR-fr", "Fr-Fr"])
+def test_case_variants_resolve_to_the_same_locale(client, configured, variant):
+    body = client.get("/greeting", params={"locale": variant}).json()
+
+    assert body["message"] == configured["fr-FR"]
+    assert body["fallback"] is False, (
+        f"{variant!r} differs from a supported locale only in case, so it must "
+        f"never fall back (GRT-009)."
+    )
+
+
+@pytest.mark.parametrize("variant", ["fr-fr", "FR-FR", "FR-fr"])
+def test_the_response_echoes_the_configured_spelling(client, variant):
+    body = client.get("/greeting", params={"locale": variant}).json()
+
+    assert body["locale"] == "fr-FR"
+    assert body["requested_locale"] == variant
