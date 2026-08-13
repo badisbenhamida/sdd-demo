@@ -44,8 +44,8 @@
 - [x] **G1 — Spec approval**: approved by PO Marco on 2026-08-12, with all
       seven Ambiguity Log items ruled on and recorded. Constitution
       Art. III.1 satisfied.
-- [ ] **G2 — Plan approval**: not started. Tech lead approves the plan
-      before implementation (Art. III.2).
+- [x] **G2 — Plan approval**: approved by Tech Lead Dana on 2026-08-12,
+      including the R-6 ruling on startup behaviour. Art. III.2 satisfied.
 - [ ] **G3 — Merge authority**: not started. Human review under branch
       protection (Art. III.3).
 

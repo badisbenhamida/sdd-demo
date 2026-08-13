@@ -187,12 +187,15 @@ the exclusivity constraint and quietly break GRT-004: some deployments
 would serve config text and others code text, with nothing to reveal
 which. The design has no in-code greeting to fall back to, by intent.
 
-**Open item for implementation (not a spec gap)**: whether a bad config
+**Startup behaviour on bad config — ruled at G2**: whether a bad config
 should abort startup outright or start the process in an unhealthy state.
-Starting unhealthy is recommended — operations can then query `/health`
+Starting unhealthy was recommended — operations can then query `/health`
 and get a definite answer rather than facing a crash-looping container
-with the reason buried in logs. Either satisfies GRT-006; the choice
-belongs to the tech lead at G2 and is called out rather than assumed.
+with the reason buried in logs. Either satisfies GRT-006.
+
+**Ruling (Tech Lead: Dana, 2026-08-12)**: the recommendation is adopted.
+The service starts in an unhealthy state and reports it via `/health`;
+it does not abort startup.
 
 ---
 
@@ -206,7 +209,7 @@ belongs to the tech lead at G2 and is called out rather than assumed.
 | Fallback semantics | Fixed by the G1 ruling; R-3 implements it |
 | Config load timing | Resolved by R-4 |
 | Health semantics | Resolved by R-5 |
-| Startup behaviour on bad config | **Recommendation offered, tech lead's call at G2** (R-6) |
+| Startup behaviour on bad config | **Ruled at G2** — start unhealthy, do not abort (R-6) |
 
-No NEEDS CLARIFICATION remains. One item (R-6) is a recommendation
-awaiting the G2 approver rather than an unknown.
+No NEEDS CLARIFICATION remains, and nothing is left awaiting an approver:
+the last open item (R-6) was ruled at G2 on 2026-08-12.

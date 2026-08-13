@@ -5,9 +5,16 @@
 **Input**: Feature specification from `/specs/001-greeting-service/spec.md`
 (Status: Approved — Gate G1, PO: Marco, 2026-08-12)
 
-**Status**: **Draft — G2 pending.** Per constitution Art. III.2 a human
-tech lead approves this plan before implementation begins. Nothing in
-this plan is authority to write code.
+**Status**: **Approved — Gate G2** (Tech Lead: Dana, 2026-08-12). Per
+constitution Art. III.2 a human tech lead approved this plan before
+implementation. Implementation may begin against `tasks.md`.
+
+**Gate G2 record**: approved as written, including design decisions
+D-1…D-8 and the AMB-005 interface mechanism deferred here from G1. The
+one item research.md left to the approver — startup behaviour on bad
+config (R-6) — is ruled by this approval: the service **starts in an
+unhealthy state** rather than aborting, so operations gets a definite
+answer from `/health` instead of a crash-looping container.
 
 ## Summary
 
@@ -69,14 +76,15 @@ requirement.
 | II.2 | `spec-drift` required check fails on uncovered criteria | Unchanged; currently red at 0/6, by design | PASS |
 | II.3 | Commits reference criterion IDs | Task commits will cite their GRT ID | PASS |
 | III.1 | G1 spec approval by human, ambiguity log resolved | Approved 2026-08-12 by PO Marco, all 7 items ruled | PASS |
-| III.2 | G2 plan approval by human tech lead before implementation | **Not yet given.** This plan is a draft | GATE OPEN |
+| III.2 | G2 plan approval by human tech lead before implementation | Approved 2026-08-12 by Tech Lead Dana | PASS |
 | III.3 | Human review under branch protection; agents never merge | Unchanged | PASS |
 | IV.1 | Agents cite criterion IDs | Every design decision below cites its criterion | PASS |
-| IV.2 | Agent artifacts labelled draft until approved | Header marks this draft, G2 pending | PASS |
+| IV.2 | Agent artifacts labelled draft until approved | Drafted as such; approved by a named human at G2 | PASS |
 | IV.3 | Agents do not modify constitution, approved specs, issues, workflows | This plan modifies none of them | PASS |
 
-**Result**: No violations. One gate deliberately open (III.2) — that is
-this plan's own approval, and the reason implementation must not start.
+**Result**: No violations, and no gate left open. G1 and G2 are both
+closed by named humans; G3 (merge authority) remains ahead, as it must —
+the agent does not merge.
 
 **Post-design re-check**: Re-run after Phase 1 below. No new violation
 introduced; the design adds no project, no persistence layer, and no
@@ -182,6 +190,7 @@ No Constitution Check violations. No entries.
 
 - [x] Phase 0 — Research complete → [research.md](./research.md)
 - [x] Phase 1 — Design complete → [data-model.md](./data-model.md), [contracts/greeting-api.yaml](./contracts/greeting-api.yaml), [quickstart.md](./quickstart.md)
-- [ ] **G2 — Tech lead approval of this plan** (constitution Art. III.2)
-- [ ] Phase 2 — Task breakdown (`/speckit.tasks`, blocked on G2)
-- [ ] Implementation (blocked on G2)
+- [x] **G2 — Tech lead approval of this plan** (constitution Art. III.2) — Dana, 2026-08-12
+- [x] Phase 2 — Task breakdown → [tasks.md](./tasks.md), 4 stories, 18 tasks
+- [ ] Implementation — unblocked; start at Story S1
+- [ ] G3 — Merge authority: human review under branch protection (Art. III.3)

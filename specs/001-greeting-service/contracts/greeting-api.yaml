@@ -6,7 +6,7 @@ openapi: 3.1.0
 # contract adopted by all regional apps" ruled at G1 under AMB-005.
 # Design decisions behind it: ../plan.md (D-1..D-8), ../research.md.
 #
-# Status: draft, G2 pending. Not authority to implement.
+# Status: approved at Gate G2 (Tech Lead: Dana, 2026-08-12).
 
 info:
   title: Global Greeting Service

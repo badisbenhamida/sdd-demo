@@ -136,5 +136,5 @@ Straight from CLAUDE.md, plus this feature's gates:
 - [ ] `.venv/bin/python scripts/spec_drift.py` reports 6/6 covered
 - [ ] Every commit cites its criterion ID
 - [ ] Working tree clean; nothing left uncommitted
-- [ ] G2 — tech lead approved this plan (Art. III.2)
+- [x] G2 — tech lead approved this plan (Art. III.2) — Dana, 2026-08-12
 - [ ] G3 — human review under branch protection; the agent does not merge (Art. III.3)

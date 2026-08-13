@@ -6,9 +6,10 @@
 [research.md](./research.md), [data-model.md](./data-model.md),
 [contracts/greeting-api.yaml](./contracts/greeting-api.yaml)
 
-**Status**: **Draft — G2 pending.** Constitution Art. III.2 requires a tech
-lead to approve the plan before implementation. No task below may start
-until that gate closes.
+**Status**: **Approved — Gate G2** (Tech Lead: Dana, 2026-08-12).
+Constitution Art. III.2 is satisfied; implementation may start at Story
+S1. G3 (merge authority, Art. III.3) remains ahead — the agent does not
+merge.
 
 **Tests**: Required, not optional. Constitution Art. II.1 requires every
 criterion to be covered by a test declaring `Implements: GRT-###`, and
