@@ -1,0 +1,194 @@
+
+# Contract — Global Greeting Service HTTP API
+#
+# Feature: specs/001-greeting-service   Date: 2026-08-12
+# Status: DRAFT — supports a plan PENDING G2 (constitution Art. III.2, IV.2).
+#
+# Field names below are the G2 decision that the G1 ruling on AMB-005
+# explicitly delegated to the plan stage. Every operation and property is
+# annotated with the criterion it satisfies; nothing here is present without
+# a criterion behind it.
+
+openapi: 3.1.0
+
+info:
+  title: Global Greeting Service
+  version: 0.1.0
+  description: |
+    Returns a greeting in the caller's requested language. Greeting text and
+    the supported language set are loaded exclusively from config/locales.yml.
+
+    An unsupported language is not an error: the service substitutes the
+    default language and marks the response (GRT-005, GRT-006), per the
+    Gate G1 ruling on AMB-001.
+
+    Authentication and network exposure are platform-layer concerns, ruled
+    out of scope at G1 (AMB-003). This contract defines no security scheme
+    deliberately — its absence is a recorded ruling, not an omission.
+
+paths:
+
+  /greeting:
+    get:
+      summary: Retrieve a greeting
+      description: |
+        Implements: GRT-001, GRT-002, GRT-003, GRT-004, GRT-005, GRT-006, GRT-009
+      operationId: getGreeting
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          description: |
+            Language identifier in language-region form (GRT-009: matched
+            case-insensitively). Omit to receive the configured default
+            language (GRT-002). An identifier outside the supported set is
+            not an error — see the fallback field (GRT-005).
+
+            The caller resolves the end user's preference and passes it
+            explicitly; the service never infers it from request context
+            such as Accept-Language (G1 ruling, AMB-007).
+          schema:
+            type: string
+          examples:
+            supported:      { value: fr-FR }
+            differentCase:  { value: FR-fr }
+            unsupported:    { value: pt-BR }
+      responses:
+        "200":
+          description: |
+            A greeting was produced. Returned both for a supported locale and
+            for a fallback — inspect the fallback field to tell them apart
+            (GRT-006).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GreetingResponse"
+              examples:
+                supported:
+                  summary: Supported locale (GRT-001)
+                  value:
+                    message: "Bonjour !"
+                    locale: "fr-FR"
+                    requested_locale: "fr-FR"
+                    fallback: false
+                noPreference:
+                  summary: No locale supplied — default served, not a fallback (GRT-002)
+                  value:
+                    message: "Hello!"
+                    locale: "en-US"
+                    requested_locale: "en-US"
+                    fallback: false
+                caseInsensitive:
+                  summary: Case difference alone never causes a fallback (GRT-009)
+                  value:
+                    message: "Bonjour !"
+                    locale: "fr-FR"
+                    requested_locale: "FR-fr"
+                    fallback: false
+                fallback:
+                  summary: Unsupported locale — default substituted and flagged (GRT-005, GRT-006)
+                  value:
+                    message: "Hello!"
+                    locale: "en-US"
+                    requested_locale: "pt-BR"
+                    fallback: true
+        "503":
+          description: |
+            Greeting configuration is not loaded, so no greeting can be served
+            from configuration. Not a fallback: with no catalog there is no
+            default to substitute, and serving a hardcoded greeting would
+            violate the config-exclusivity constraint (research.md R-4).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /health:
+    get:
+      summary: Report whether the service can serve greetings
+      description: |
+        Implements: GRT-007, GRT-008
+
+        Reflects greeting-content load state, not process liveness — a running
+        process that could not load its configuration reports unhealthy (G1
+        ruling, AMB-004). The HTTP status carries the same signal as the body
+        so that monitors which do not parse JSON still read it correctly.
+      operationId: getHealth
+      responses:
+        "200":
+          description: Greeting content is loaded; the service can serve greetings (GRT-007).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: healthy
+                locales_loaded: 4
+        "503":
+          description: Greeting content is not loaded; the service cannot serve greetings (GRT-008).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: unhealthy
+                locales_loaded: 0
+                detail: "config/locales.yml not found"
+
+components:
+  schemas:
+
+    GreetingResponse:
+      type: object
+      description: |
+        All four properties are always present. A stable key set means
+        `fallback` is never absent-and-therefore-falsy.
+      required: [message, locale, requested_locale, fallback]
+      additionalProperties: false
+      properties:
+        message:
+          type: string
+          description: "Greeting text, verbatim from config/locales.yml (GRT-001)."
+          example: "Bonjour !"
+        locale:
+          type: string
+          description: |
+            The locale actually served, in the spelling configured in
+            config/locales.yml — canonical, not a mirror of the caller's
+            casing (GRT-006).
+          example: "fr-FR"
+        requested_locale:
+          type: string
+          description: |
+            What the caller asked for, unmodified. Equals `locale` on a hit.
+            When the caller supplied none, this is the default — that is a
+            request for the default, not a substitution. Present so a caller
+            can log the gap when `fallback` is true (G1 ruling, AMB-001).
+          example: "pt-BR"
+        fallback:
+          type: boolean
+          description: |
+            True when the requested locale was unsupported and the default
+            was substituted (GRT-005, GRT-006). A boolean rather than an
+            inference from `locale != requested_locale`, so callers need no
+            comparison logic.
+          example: false
+
+    HealthResponse:
+      type: object
+      required: [status, locales_loaded]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: "Load state of the greeting catalog (GRT-007, GRT-008)."
+        locales_loaded:
+          type: integer
+          minimum: 0
+          description: "Size of the supported language set; makes a green check informative."
+          example: 4
+        detail:
+          type: string
+          description: "Why the catalog failed to load. Present only when unhealthy."
+          example: "config/locales.yml not found"
