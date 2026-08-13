@@ -15,10 +15,22 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from src.config import load_catalog
+from src.config import LocaleCatalog, load_catalog
 from src.greetings import resolve
 
 UNAVAILABLE = 503
+
+
+def _unavailable(catalog: LocaleCatalog) -> JSONResponse:
+    """The one shape both endpoints use to say 'running, cannot greet'."""
+    return JSONResponse(
+        status_code=UNAVAILABLE,
+        content={
+            "status": "unhealthy",
+            "locales_loaded": 0,
+            "detail": catalog.error,
+        },
+    )
 
 
 @asynccontextmanager
@@ -48,14 +60,7 @@ def get_greeting(locale: str | None = None):
     if not catalog.loaded:
         # Not a fallback: with no catalog there is no default to substitute,
         # and inventing one would break config exclusivity (research.md R-4).
-        return JSONResponse(
-            status_code=UNAVAILABLE,
-            content={
-                "status": "unhealthy",
-                "locales_loaded": 0,
-                "detail": catalog.error,
-            },
-        )
+        return _unavailable(catalog)
 
     result = resolve(catalog, locale)
     return {
@@ -64,3 +69,20 @@ def get_greeting(locale: str | None = None):
         "requested_locale": result.requested_locale,
         "fallback": result.fallback,
     }
+
+
+@app.get("/health")
+def get_health():
+    """Report whether the service can actually serve greetings.
+
+    Reflects catalog load state, not process liveness: a running process that
+    could not read its configuration is unhealthy (GRT-008). The HTTP status
+    carries the same signal as the body so a monitor that does not parse JSON
+    still reads it correctly.
+    """
+    catalog = app.state.catalog
+
+    if not catalog.loaded:
+        return _unavailable(catalog)
+
+    return {"status": "healthy", "locales_loaded": len(catalog.greetings)}
