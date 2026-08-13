@@ -1,0 +1,21 @@
+# Locale catalog — the single source of greeting text, the supported set,
+# and the default locale (GRT-010).
+#
+# This file is the contract with operations: adding a language is a change
+# here and a restart, never a code change (SC-005). Nothing under src/ carries
+# greeting text, including no safety-net default — see specs/001-greeting-
+# service/research.md R-4.
+#
+# Launch membership is fixed by the Gate G1 ruling on AMB-002 (PO: Marco,
+# 2026-08-12): en-US, fr-FR, de-DE, ja-JP, with en-US the default.
+#
+# `default` MUST be a key of `locales`, else the catalog fails to load and the
+# service reports unhealthy rather than starting in a half-working state.
+
+default: en-US
+
+locales:
+  en-US: "Hello!"
+  fr-FR: "Bonjour !"
+  de-DE: "Hallo!"
+  ja-JP: "こんにちは!"
