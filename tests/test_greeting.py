@@ -48,3 +48,40 @@ def test_a_supported_locale_is_never_reported_as_a_fallback(client, configured):
 
         assert body["fallback"] is False
         assert body["requested_locale"] == locale
+
+
+# Implements: GRT-004
+#
+# GRT-004: "When two calling applications request a greeting for the same
+# language, the Greeting Service shall return identical greeting text to both."
+#
+# Resolution is a pure function of the locale and the loaded catalog, so this
+# holds by construction. These tests exist to catch a future change that makes
+# it stop holding -- caller-specific text, or per-request variation.
+
+
+def test_two_calling_applications_receive_identical_text(client, configured):
+    """Different callers, distinguished as far as the interface allows."""
+    for locale in configured:
+        app_a = client.get(
+            "/greeting",
+            params={"locale": locale},
+            headers={"User-Agent": "regional-app-emea/1.0"},
+        )
+        app_b = client.get(
+            "/greeting",
+            params={"locale": locale},
+            headers={"User-Agent": "regional-app-apac/2.3"},
+        )
+
+        assert app_a.json() == app_b.json(), (
+            f"{locale} served different payloads to different callers"
+        )
+
+
+def test_repeated_requests_do_not_drift(client):
+    """No per-request variation: not time-of-day, not rotation, not order."""
+    responses = [client.get("/greeting", params={"locale": "fr-FR"}).json()
+                 for _ in range(5)]
+
+    assert all(response == responses[0] for response in responses)
