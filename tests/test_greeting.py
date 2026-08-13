@@ -27,6 +27,17 @@ def _unsupported_language() -> str:
     return candidate
 
 
+def _a_configured_language() -> str:
+    """Any language the table actually carries, preferring a non-default one.
+
+    Also derived rather than hardcoded (AMB-001): a literal "fr" would
+    test the configuration rather than the code, and would break the day
+    the business changes the launch set.
+    """
+    non_default = sorted(set(LOCALES) - {DEFAULT_LANGUAGE})
+    return non_default[0] if non_default else DEFAULT_LANGUAGE
+
+
 # Implements: GRT-005
 def test_unsupported_language_falls_back_to_default_and_says_so():
     """GRT-005: fall back to the default language, and say that you did.
@@ -82,3 +93,32 @@ def test_no_language_preference_returns_the_default_language():
     assert body["language"] == DEFAULT_LANGUAGE
     assert body["requested_language"] is None
     assert body["fallback"] is False
+
+
+# Implements: GRT-004
+def test_same_language_yields_identical_text_for_every_caller():
+    """GRT-004: one language, one text — regardless of who asks or from where.
+
+    Three independent clients stand in for three regional applications,
+    each declaring a different region. The service carries no caller
+    identity at all (data-model.md), so there is nothing that *could*
+    vary; this asserts that stays true.
+
+    Byte-identity is the measure, per SC-003: zero text variants per
+    language across all consumers.
+    """
+    language = _a_configured_language()
+    regions = [None, "emea", "apac"]
+
+    bodies = []
+    for region in regions:
+        headers = {"X-Region": region} if region else {}
+        # A fresh client per caller — not one shared session.
+        response = TestClient(app).get(
+            "/greeting", params={"lang": language}, headers=headers
+        )
+        assert response.status_code == 200
+        bodies.append(response.json())
+
+    assert len({body["message"] for body in bodies}) == 1
+    assert bodies[0] == bodies[1] == bodies[2]
