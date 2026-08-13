@@ -1,87 +1,158 @@
-"""Acceptance tests for greeting retrieval.
+"""Acceptance tests for the greeting interface.
 
-Implements: GRT-001, GRT-002, GRT-006
+The `# Implements: GRT-###` annotations are the contract between spec and
+code (constitution Art. II.1). scripts/spec_drift.py harvests them, and a
+criterion with no annotation here fails the required check on main.
 """
 
 import pytest
 from fastapi.testclient import TestClient
 
-from src.greeting_service.app import app
-from src.greeting_service.locales import load_catalogue
+from src.config import DEFAULT_LANGUAGE
+from src.main import LOCALES, app
 
-SUPPORTED = sorted(load_catalogue())
-
-
-@pytest.fixture(name="client")
-def _client() -> TestClient:
-    return TestClient(app)
+client = TestClient(app)
 
 
-# Implements: GRT-001
-@pytest.mark.parametrize("language", SUPPORTED)
-def test_supported_language_returns_a_greeting_in_that_language(client, language):
-    """GRT-001 — the greeting comes back in the language that was asked for."""
-    response = client.get("/greeting", params={"language": language})
+def _unsupported_language() -> str:
+    """A language identifier the configured table does not carry.
+
+    Derived rather than hardcoded. The supported-language set is
+    business-owned configuration (AMB-001 ruling), so a literal like
+    "fr" could become supported tomorrow and silently invert the
+    assertion instead of failing it.
+    """
+    candidate = "zz"
+    while candidate in LOCALES:
+        candidate += "z"
+    return candidate
+
+
+def _a_configured_language() -> str:
+    """Any language the table actually carries, preferring a non-default one.
+
+    Also derived rather than hardcoded (AMB-001): a literal "fr" would
+    test the configuration rather than the code, and would break the day
+    the business changes the launch set.
+    """
+    non_default = sorted(set(LOCALES) - {DEFAULT_LANGUAGE})
+    return non_default[0] if non_default else DEFAULT_LANGUAGE
+
+
+# Implements: GRT-005
+def test_unsupported_language_falls_back_to_default_and_says_so():
+    """GRT-005: fall back to the default language, and say that you did.
+
+    Status is 200, not an error. The approved spec rules
+    fallback-with-notice (AMB-003): a fallback is a successful request
+    that reports a gap, so callers treating non-2xx as an exception
+    still render a greeting.
+    """
+    unsupported = _unsupported_language()
+
+    response = client.get("/greeting", params={"lang": unsupported})
 
     assert response.status_code == 200
     body = response.json()
-    assert body["language"] == language
-    assert body["greeting"] == load_catalogue()[language]
+    assert body["message"] == LOCALES[DEFAULT_LANGUAGE]
+    assert body["language"] == DEFAULT_LANGUAGE
+    assert body["requested_language"] == unsupported
+    assert body["fallback"] is True
+    assert body["message"], "a fallback must still yield a usable greeting"
+
+
+# Implements: GRT-005
+def test_unsupported_language_response_is_identical_on_repeat():
+    """GRT-005: the same unsupported request yields the same response.
+
+    The spec's second acceptance scenario for this story. Holds because
+    the locale table is immutable for the process lifetime (research R-4).
+    """
+    unsupported = _unsupported_language()
+
+    bodies = [
+        client.get("/greeting", params={"lang": unsupported}).json()
+        for _ in range(3)
+    ]
+
+    assert bodies[0] == bodies[1] == bodies[2]
+
+
+# Implements: GRT-002
+def test_no_language_preference_returns_the_default_language():
+    """GRT-002: no preference supplied -> the configured default, English.
+
+    `fallback` stays False here. Asking for nothing is not a failed
+    request: the caller expressed no preference, so serving the default
+    is the correct answer rather than a substitution for one.
+    """
+    response = client.get("/greeting")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["message"] == LOCALES[DEFAULT_LANGUAGE]
+    assert body["language"] == DEFAULT_LANGUAGE
+    assert body["requested_language"] is None
+    assert body["fallback"] is False
+
+
+# Implements: GRT-004
+def test_same_language_yields_identical_text_for_every_caller():
+    """GRT-004: one language, one text — regardless of who asks or from where.
+
+    Three independent clients stand in for three regional applications,
+    each declaring a different region. The service carries no caller
+    identity at all (data-model.md), so there is nothing that *could*
+    vary; this asserts that stays true.
+
+    Byte-identity is the measure, per SC-003: zero text variants per
+    language across all consumers.
+    """
+    language = _a_configured_language()
+    regions = [None, "emea", "apac"]
+
+    bodies = []
+    for region in regions:
+        headers = {"X-Region": region} if region else {}
+        # A fresh client per caller — not one shared session.
+        response = TestClient(app).get(
+            "/greeting", params={"lang": language}, headers=headers
+        )
+        assert response.status_code == 200
+        bodies.append(response.json())
+
+    assert len({body["message"] for body in bodies}) == 1
+    assert bodies[0] == bodies[1] == bodies[2]
 
 
 # Implements: GRT-001
-@pytest.mark.parametrize("language", SUPPORTED)
-def test_each_language_returns_its_own_distinct_text(client, language):
-    """A catalogue that returned one language's text for another would still
-    satisfy a naive "returns 200 with a greeting" check."""
-    others = {lang for lang in SUPPORTED if lang != language}
-    greeting = client.get("/greeting", params={"language": language}).json()["greeting"]
+@pytest.mark.parametrize("language", sorted(LOCALES))
+def test_supported_language_returns_that_language(language):
+    """GRT-001: a supported language preference yields that language's text.
 
-    assert greeting not in {load_catalogue()[lang] for lang in others}
-
-
-# Implements: GRT-002
-@pytest.mark.parametrize("language", SUPPORTED)
-def test_independent_callers_receive_identical_text(language):
-    """GRT-002 — the business case from BRD §1: one wording, not per-app drift.
-
-    Two separate clients stand in for two regional applications.
+    Parameterised over whatever the table currently carries rather than
+    a fixed list. Under the AMB-001 ruling the supported set is
+    business-owned configuration, so this test grows with the launch set
+    instead of needing an edit each time it changes.
     """
-    first = TestClient(app).get("/greeting", params={"language": language})
-    second = TestClient(app).get("/greeting", params={"language": language})
+    response = client.get("/greeting", params={"lang": language})
 
-    assert first.json()["greeting"] == second.json()["greeting"]
-
-
-# Implements: GRT-002
-def test_repeated_requests_are_stable(client):
-    """Text must not vary between calls — no rotation, no per-request assembly."""
-    responses = {
-        client.get("/greeting", params={"language": "fr"}).json()["greeting"]
-        for _ in range(5)
-    }
-
-    assert len(responses) == 1
+    assert response.status_code == 200
+    body = response.json()
+    assert body["message"] == LOCALES[language]
+    assert body["language"] == language
+    assert body["requested_language"] == language
+    assert body["fallback"] is False
 
 
-# Implements: GRT-006
-def test_caller_supplied_user_identifier_does_not_affect_the_response(client):
-    """GRT-006 — the language comes from the request, never from a user record.
+# Implements: GRT-001
+def test_the_configured_table_carries_more_than_the_default():
+    """GRT-001 is only meaningfully exercised with a real choice of language.
 
-    AMB-001 was resolved to a stateless service: it holds no user state and
-    performs no lookup, so a user identifier must be inert.
+    data-model.md requires the acceptance tests to exercise the default
+    plus at least two further languages. Without this, the parameterised
+    test above could silently shrink to a single default-language case
+    and still pass, covering GRT-001 in name only.
     """
-    plain = client.get("/greeting", params={"language": "fr"})
-    with_user = client.get("/greeting", params={"language": "fr", "user_id": "8842"})
-
-    assert plain.json() == with_user.json()
-
-
-# Implements: GRT-006
-def test_language_is_taken_from_the_request_not_a_profile(client):
-    """Two callers claiming different identities get whatever they ask for."""
-    first = client.get("/greeting", params={"language": "de", "user_id": "1"})
-    second = client.get("/greeting", params={"language": "ja", "user_id": "1"})
-
-    assert first.json()["language"] == "de"
-    assert second.json()["language"] == "ja"
+    assert len(LOCALES) >= 3, "config/locales.yml must carry en plus two more"
+    assert DEFAULT_LANGUAGE in LOCALES

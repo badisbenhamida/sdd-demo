@@ -1,37 +1,32 @@
 <!--
 Sync Impact Report
 ==================
-Version change: (unversioned template placeholder) → 1.0.0
-Source of truth: memory/constitution.md (human-authored). This file is a
-  GENERATED MIRROR. Changes flow ONLY memory/ → .specify/, never the reverse.
-  Amend the source, then re-run the mirror; never edit this file directly.
+Version change: (unfilled template) → 1.0.0
 
-Principles (all four articles mirrored verbatim from the source):
-  + Article I — Specs are the contract
-  + Article II — Traceability is enforced, not encouraged
-  + Article III — Human gates
-  + Article IV — Agent conduct
+This file is a MIRROR of the human-authored `memory/constitution.md`.
+Article text is reproduced verbatim; only template scaffolding was applied.
+Changes flow ONLY from `memory/` to `.specify/`, never the reverse.
+
+Modified principles:
+  [PRINCIPLE_1_NAME] → Article I — Specs are the contract
+  [PRINCIPLE_2_NAME] → Article II — Traceability is enforced, not encouraged
+  [PRINCIPLE_3_NAME] → Article III — Human gates
+  [PRINCIPLE_4_NAME] → Article IV — Agent conduct
 
 Added sections:
-  + Provenance rule blockquote (verbatim from source)
-  + Governance (mirror-local: restates the source amendment procedure and
-    records the mirror direction; adds no new governance rules)
+  Provenance rule (verbatim preamble from the source constitution)
 
-Removed / omitted template sections:
-  - [PRINCIPLE_5_NAME] — the source defines exactly four articles
-  - [SECTION_2_NAME] / [SECTION_3_NAME] — no corresponding source content;
-    left out rather than invented, per "do not restructure or reword"
-
-Bracket tokens intentionally retained (source content, NOT placeholders):
-  - `[RETIRED]` in Article I.2 — a literal marker defined by the constitution
-  - `GRT-###` / `Implements: GRT-###` — literal criterion-ID formats
+Removed sections:
+  [PRINCIPLE_5_NAME] — the source constitution has exactly four articles
+  [SECTION_2_NAME] / [SECTION_3_NAME] — no corresponding content in the
+    source; omitted rather than authored, since no agent may originate
+    constitution content (Article IV.3)
 
 Deferred items:
-  - TODO(CONSTITUTION_VERSION): version/ratification metadata does not exist in
-    memory/constitution.md. 1.0.0 and the 2026-08-12 ratification date are
-    derived from git (commit 9f20142, the commit that introduced the source
-    file). If leads want this metadata authoritative, a human must add it to
-    memory/constitution.md; until then it is mirror-local bookkeeping.
+  RATIFICATION_DATE — the source document carries no explicit adoption
+    date; 2026-08-12 is derived from the first commit of
+    memory/constitution.md (9f20142). Correct here only by amending the
+    source document first.
 -->
 
 # Engineering Constitution
@@ -82,23 +77,23 @@ Deferred items:
 
 ## Governance
 
-This file is a generated mirror of `memory/constitution.md`, which is the
-authoritative, human-authored document. Where the two differ, the source in
-`memory/` governs.
+This file is a read-only mirror. The authoritative constitution is
+`memory/constitution.md`; changes flow only from `memory/` into
+`.specify/memory/`, never the reverse. Amending the mirror alone has no
+governing effect.
 
-**Amendment procedure.** Per the Provenance rule above, amendments are made to
-`memory/constitution.md` by a human, via a PR approved by two engineering
-leads. The mirror is then regenerated. No agent may author an amendment in
-either location, and no change may flow from `.specify/` back to `memory/`.
+Amendment procedure, per the provenance rule above: this document is
+human-authored and human-amended only; no agent may generate or modify
+it, and amendments require a PR approved by two engineering leads.
 
-**Versioning policy.** Semantic versioning of this mirror: MAJOR for backward
-incompatible governance or article removals/redefinitions, MINOR for a new
-article or materially expanded guidance, PATCH for clarifications and
-non-semantic refinements. The version tracks the mirrored content, not the
-mirroring operation.
+Versioning of this mirror follows semantic versioning: MAJOR for
+removal or incompatible redefinition of an article, MINOR for a new or
+materially expanded article, PATCH for clarifications that do not change
+meaning. The version tracks the mirrored content, not the mirroring
+mechanism.
 
-**Compliance review.** Article II.2 makes the `spec-drift` workflow a required
-status check on `main`; Article III.3 makes human review a merge gate. PR
-review verifies compliance with all four articles.
+Compliance review: the `spec-drift` required status check on `main`
+enforces Article II on every PR; Article III gates (G1, G2, G3) are
+verified by the human approvers named in each gate.
 
 **Version**: 1.0.0 | **Ratified**: 2026-08-12 | **Last Amended**: 2026-08-12

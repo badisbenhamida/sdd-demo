@@ -1,0 +1,184 @@
+openapi: 3.1.0
+
+# Interface contract for the Global Greeting Service.
+#
+# This is the single interface required by GRT-003 and the "one interface
+# contract adopted by all regional apps" ruled at G1 under AMB-005.
+# Design decisions behind it: ../plan.md (D-1..D-8), ../research.md.
+#
+# Status: approved at Gate G2 (Tech Lead: Dana, 2026-08-12).
+
+info:
+  title: Global Greeting Service
+  version: 1.0.0
+  description: |
+    Returns a greeting appropriate to a caller-supplied language
+    preference. Traces to BRD-2026-014 via specs/001-greeting-service/spec.md
+    (approved at G1, 2026-08-12).
+
+    One interface serves every regional application (GRT-003), and the
+    text for a given language is identical for every caller (GRT-004).
+
+    Greeting text is loaded exclusively from config/locales.yml at
+    startup. There is no per-caller state and no database.
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+paths:
+  /greeting:
+    get:
+      summary: Retrieve a greeting
+      description: |
+        Returns the greeting for the requested language.
+
+        - Supported language requested -> that language's text (GRT-001)
+        - No language requested -> the default, English (GRT-002)
+        - Unsupported language requested -> English text with
+          `fallback: true` and the requested value echoed (GRT-005)
+
+        The unsupported case is **HTTP 200, not an error**. The G1 ruling
+        on AMB-003 is fallback-with-notice: the end user always sees a
+        greeting, and the caller detects the gap via the `fallback` field.
+        Callers must not treat a fallback as a failed request.
+      operationId: getGreeting
+      parameters:
+        - name: lang
+          in: query
+          required: false
+          description: |
+            Language preference, passed explicitly by the caller
+            (AMB-005 ruling, design D-1). Omit it to receive the default.
+
+            Values are not validated against a fixed list: the supported
+            set is business-owned configuration (AMB-001), and any value
+            not currently configured takes the GRT-005 fallback path.
+          schema:
+            type: string
+            examples: ["fr"]
+      responses:
+        "200":
+          description: |
+            A greeting. Returned on every path including fallback.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Greeting"
+              examples:
+                supported:
+                  summary: Supported language (GRT-001)
+                  value:
+                    message: "Bonjour"
+                    language: "fr"
+                    requested_language: "fr"
+                    fallback: false
+                noPreference:
+                  summary: No preference supplied (GRT-002)
+                  value:
+                    message: "Hello"
+                    language: "en"
+                    requested_language: null
+                    fallback: false
+                unsupported:
+                  summary: Unsupported language, fell back (GRT-005)
+                  value:
+                    message: "Hello"
+                    language: "en"
+                    requested_language: "xx"
+                    fallback: true
+        "503":
+          description: |
+            The locale table is unavailable, so no greeting can be
+            served. Occurs when config/locales.yml is missing,
+            unparseable, or lacks the default language.
+
+            There is deliberately no in-code greeting to fall back on
+            (research R-6): serving invented text would break GRT-004,
+            since some deployments would answer from config and others
+            from source with nothing to reveal which.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /health:
+    get:
+      summary: Availability indication for operations
+      description: |
+        Lets operations determine whether the service is available
+        (GRT-006) without inspecting application behaviour or asking the
+        owning team.
+
+        Availability means the locale table loaded. A process accepting
+        connections but holding no locale table cannot serve any
+        greeting, so it reports unavailable (design D-7, research R-5).
+
+        Scope is availability only. Metrics, per-language demand and
+        structured logging were deferred to a separate BRD by the G1
+        ruling on AMB-004, and are deliberately absent from this payload.
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is available; the locale table loaded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              examples:
+                available:
+                  value:
+                    status: "ok"
+        "503":
+          description: Service is not available; the locale table did not load.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              examples:
+                unavailable:
+                  value:
+                    status: "unavailable"
+
+components:
+  schemas:
+    Greeting:
+      type: object
+      description: |
+        One schema on every path, so callers parse a single shape rather
+        than branching on status code (research R-2).
+      required: [message, language, requested_language, fallback]
+      properties:
+        message:
+          type: string
+          description: The greeting text to display. Never empty.
+          examples: ["Hello"]
+        language:
+          type: string
+          description: The language the text is actually in.
+          examples: ["en"]
+        requested_language:
+          type: [string, "null"]
+          description: |
+            What the caller asked for. Null when no preference was
+            supplied. Echoed verbatim on the fallback path so the caller
+            can report which language is missing.
+          examples: ["xx"]
+        fallback:
+          type: boolean
+          description: |
+            True when the requested language was unavailable and the
+            default was used (GRT-005). Machine-readable, and independent
+            of the status code by design.
+          examples: [false]
+
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, unavailable]
+          description: |
+            `ok` when the locale table loaded, `unavailable` when it did
+            not. No other field is reported this release (AMB-004).

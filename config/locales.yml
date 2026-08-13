@@ -1,16 +1,18 @@
-# Sole source of greeting text and of the supported-language set.
+# Greeting text per language — business-owned configuration (AMB-001 ruling).
 #
-# The key set IS the supported-language set (GRT-007) — nothing else declares
-# it, so the advertised languages and the available text cannot drift apart.
+# This file is the ONLY source of greeting text. No greeting is hardcoded
+# in src/, not even as an emergency default (plan.md research R-6):
+# a code-side default would let some deployments answer from config and
+# others from source, with nothing to reveal which, breaking GRT-004.
 #
-# Greeting text is fixed at build time (AMB-008): changing it requires a
-# release, and there is no runtime content management (BRD §3).
+# `en` is required — the AMB-002 ruling makes English the default when a
+# caller expresses no preference. The identifier is a constant in code;
+# the text lives here.
 #
-# Adding or removing a language changes GRT-007 and is therefore a spec
-# change, not just an edit to this file.
+# The languages below the default are illustrative. The real launch set is
+# a business deliverable under AMB-001 and can change without code change.
 
-en: "Hello"
-fr: "Bonjour"
-de: "Hallo"
-es: "Hola"
-ja: "こんにちは"
+locales:
+  en: "Hello"
+  fr: "Bonjour"
+  de: "Hallo"

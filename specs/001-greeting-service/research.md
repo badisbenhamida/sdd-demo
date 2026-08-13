@@ -1,144 +1,215 @@
-# Phase 0 Research: Global Greeting Service
+# Phase 0 — Research: Global Greeting Service
 
-**Feature**: `specs/001-greeting-service` | **Date**: 2026-08-12
-**Status**: 🔶 DRAFT — supports plan.md, pending G2
+**Feature**: [spec.md](./spec.md) (Approved — Gate G1) | **Plan**: [plan.md](./plan.md)
+**Date**: 2026-08-12
 
-The stack was given (Python 3.12, FastAPI, pytest, `config/locales.yml`, no database), so
-no technology selection was needed. What follows resolves the design questions that the
-approved criteria raise but do not answer.
+The stack was given: Python 3.12, FastAPI, pytest, no database, locale
+templates exclusively from `config/locales.yml`. So there are no
+NEEDS CLARIFICATION items on technology choice. What remains genuinely
+open are the design questions G1 explicitly deferred to G2 — chiefly
+AMB-005 (how a caller expresses a language preference) — plus the
+consequences of the exclusive-config constraint.
+
+Each decision below cites the criterion it serves. None of them changes
+a requirement; where a design option would have, it is rejected and the
+reason is recorded.
 
 ---
 
-## D1 — Preventing FastAPI's 422 from swallowing GRT-008
+## R-1 — How does a caller express its language preference?
 
-**Decision**: Declare `language` as an *optional* query parameter and validate its presence
-in application code, returning the `MISSING_LANGUAGE` error explicitly.
+**Decision**: An explicit query parameter, `GET /greeting?lang=fr`.
+Absent parameter means "no preference" and triggers the GRT-002 default.
 
-**Rationale**: GRT-008 requires a `MISSING_LANGUAGE` error that is *distinct from*
-`UNSUPPORTED_LANGUAGE`. FastAPI's natural idiom — a required parameter — makes the
-framework answer first, with a `422 Unprocessable Entity` whose body is Pydantic's
-validation structure. That response contains neither error code, so a service written the
-obvious way passes a naive smoke test and still violates GRT-008. Making the parameter
-optional moves the decision into code the tests can pin.
+**Serves**: GRT-001, GRT-003. Implements the AMB-005 ruling.
+
+**Rationale**: The G1 ruling says the preference is "passed explicitly by
+the caller". A query parameter is exactly that: present or absent, one
+value, visible in logs and in a curl command. It is also the cheapest
+thing to test — no header plumbing in the test client.
 
 **Alternatives considered**:
 
-- *Required parameter + `RequestValidationError` handler*: works, but couples the error
-  contract to Pydantic's internal error shape, and the handler fires for any future
-  validation failure — a wide blast radius for one narrow rule.
-- *Accept the 422*: rejected. It fails GRT-008 as written.
-
-**Risk if ignored**: this is the most likely path to a green-looking implementation that
-breaches the spec. `tests/test_errors.py` must assert the code, not just a 4xx status.
+- **`Accept-Language` header with content negotiation.** The HTTP-native
+  answer, and the one most reviewers will ask about. Rejected because
+  negotiation is *implicit*: browsers inject the header without the
+  calling application choosing it, quality weights (`fr;q=0.9, en;q=0.8`)
+  make "what did the caller ask for?" a ranking rather than a value, and
+  GRT-005 needs to echo a single `requested_language` back. It also sits
+  awkwardly with AMB-005's word "explicitly".
+- **Path segment, `/greeting/fr`.** Reads well, but makes "no preference"
+  a separate route rather than an absent value, which splits GRT-002 and
+  GRT-001 across two paths for no gain.
+- **Both header and parameter, parameter wins.** Rejected as unneeded
+  surface: two ways to say the same thing, with a precedence rule to
+  document and test. Can be added later without breaking D-1 if a real
+  caller needs it.
 
 ---
 
-## D2 — HTTP status codes for the two error paths
+## R-2 — What shape is the response?
 
-**Decision**: `MISSING_LANGUAGE` → `400 Bad Request`; `UNSUPPORTED_LANGUAGE` →
-`404 Not Found`. Both bodies carry a machine-readable `code`, and the contract tells
-callers to branch on `code`, not on status.
+**Decision**: JSON on every path, with a fixed schema:
 
-**Rationale**: the request that omits a language is malformed — the caller made a mistake
-(400). The request naming a real-but-uncarried language is well-formed and asks for
-something the service does not have (404). Keeping `code` authoritative means this mapping
-is a presentation detail that can change without touching GRT-004 or GRT-008.
+| Field | Type | Meaning |
+|---|---|---|
+| `message` | string | The greeting text to display |
+| `language` | string | The language the text is actually in |
+| `requested_language` | string or null | What the caller asked for; null when no preference was supplied |
+| `fallback` | boolean | True when the requested language was unavailable and the default was used |
+
+**Serves**: GRT-001, GRT-002, GRT-005.
+
+**Rationale**: GRT-005 requires the service to "indicate in its response
+that a fallback occurred". A dedicated boolean makes that indication
+machine-readable and independent of the status code, so a caller detects
+the gap with one field check rather than by comparing what it asked for
+against what it got. Keeping all four fields present on every path means
+callers parse one schema, not three.
 
 **Alternatives considered**:
 
-- *400 for both*: simpler, but erases at HTTP level exactly the distinction AMB-009 was
-  resolved to preserve. Callers reading only the status could not tell an integration bug
-  from genuine unsupported-locale demand.
-- *422 for unsupported*: closer to "semantically invalid", but collides with FastAPI's own
-  422 (see D1) and would make the two indistinguishable in logs.
-
-**Note for G2**: the spec does not mandate any status code. If the platform has a house
-standard for error responses, it overrides this decision — the criteria stay satisfied
-either way as long as the two codes remain distinct.
+- **Bare string body.** Smallest possible response, but there is nowhere
+  to signal fallback, so GRT-005 becomes unimplementable without abusing
+  the status code. Rejected.
+- **Omit `requested_language` and `fallback` on the happy path.** Saves
+  bytes; costs every caller a null-check and makes the contract two
+  shapes. Rejected — the schema is the interface (GRT-003).
+- **A `warnings[]` array instead of a boolean.** More extensible, but
+  nothing else currently warns. Speculative generality. Rejected.
 
 ---
 
-## D3 — Health semantics under GRT-005
+## R-3 — Fallback or refusal for an unsupported language?
 
-**Decision**: load and validate `config/locales.yml` once at startup; abort startup on
-failure. `/health` reports healthy only while a non-empty catalogue is in memory.
+**Decision**: Fall back to the default language and return **HTTP 200**
+with `fallback: true`.
 
-**Rationale**: GRT-005 asks whether the service "is able to serve greetings", and the
-spec's edge cases require that a service which is running but cannot serve must not report
-healthy. Fail-fast handles the ordinary case (a broken file never reaches traffic), while
-the catalogue check keeps the unhealthy state reachable and testable rather than
-theoretical.
+**Serves**: GRT-005.
+
+**Rationale**: This is not an open design question — it was ruled at G1.
+AMB-003: "Fall back to the default language **and** state in the response
+that a fallback occurred… Refusing outright was rejected because it
+surfaces as broken UI." The plan implements the ruling.
+
+An error status (4xx) would contradict the approved criterion: a status
+in the 4xx range tells the caller the request failed, when in fact a
+usable greeting was returned. Callers that treat non-2xx as an exception
+would discard a valid greeting and render nothing — precisely the broken
+UI the PO ruled against.
 
 **Alternatives considered**:
 
-- *Start unhealthy and serve 503s*: more machinery — readiness vs liveness, degraded
-  states — none of which BR-4 or AMB-005 asked for.
-- *Static `{"status": "ok"}`*: cheapest, but reports healthy for a service that cannot
-  serve a single greeting. Fails the spec's edge case.
+- **HTTP 400 with an `UNSUPPORTED_LOCALE` code and no fallback.** This is
+  what `docs/DEMO-RUNBOOK.md:120` sketches, and it is a defensible design
+  in the abstract — it is louder, and it forces callers to handle the
+  gap. It is rejected here for one reason only: **it contradicts an
+  approved criterion.** Adopting it is a spec change requiring the PO at
+  G1, not a plan decision. Flagged in plan.md as a divergence so the tech
+  lead sees it at G2 rather than discovering it in review.
+- **200 with the requested language echoed in `language`.** Would lie
+  about what the text is. Rejected.
 
 ---
 
-## D4 — Guaranteeing identical text across callers (GRT-002)
+## R-4 — When and how are locales loaded?
 
-**Decision**: one immutable in-memory catalogue, loaded once at startup, returned verbatim.
-No per-request formatting, no caller-specific branching, no template interpolation.
+**Decision**: Read and validate `config/locales.yml` once at application
+startup into an immutable in-memory mapping. No file access on the
+request path. No reload endpoint, no file watching.
 
-**Rationale**: GRT-002 is the criterion that carries the BRD's actual business case (§1:
-inconsistent tone, duplicated translation cost). It holds trivially if there is exactly one
-source and nothing mutates it. Interpolation would reintroduce per-caller variance, and §3
-puts personalization out of scope regardless.
+**Serves**: GRT-004, and GRT-006 by way of R-5.
+
+**Rationale**: GRT-004 requires every calling application to receive the
+same text for a given language. If the file were re-read per request, two
+callers straddling a config edit would legitimately receive different
+text and GRT-004 would hold only between deployments. Loading once makes
+the guarantee structural for the process lifetime. It also keeps the
+request path allocation-only — no I/O, no parse — which matters for a
+service every regional app depends on, even though AMB-007 sets no target.
 
 **Alternatives considered**:
 
-- *Re-read the YAML per request*: allows text to change under a running service, which
-  contradicts AMB-008 and could serve two callers different text within one deployment —
-  a direct GRT-002 violation.
+- **Read per request.** Simplest to reason about for config edits; breaks
+  the GRT-004 guarantee mid-flight and puts a YAML parse on every call.
+  Rejected.
+- **Cached read with TTL.** Same GRT-004 hazard as per-request, just
+  rarer and harder to reproduce. Rejected.
+- **Hot-reload endpoint.** Operationally attractive, but it is new
+  surface area no criterion asks for, and it reintroduces the mid-flight
+  inconsistency. Out of scope — a config change ships as a restart.
 
 ---
 
-## D5 — Locale file shape
+## R-5 — What does "available" mean for the health indication?
 
-**Decision**: a flat mapping of language code → greeting text, with the supported set being
-exactly the file's keys.
+**Decision**: `GET /health` returns 200 when the locale table loaded
+successfully and 503 when it did not. Nothing else is reported.
 
-```yaml
-en: "Hello"
-fr: "Bonjour"
-de: "Hallo"
-es: "Hola"
-ja: "こんにちは"
-```
+**Serves**: GRT-006.
 
-**Rationale**: makes GRT-007 directly testable — assert the loaded key set equals the five
-approved languages — and keeps `config/locales.yml` the single source of both the text and
-the supported-language list, so the two cannot drift apart.
+**Rationale**: GRT-006 asks whether "the service is available". A process
+that is accepting connections but holds no locale table cannot serve any
+greeting, so reporting it healthy would make the indication misleading
+exactly when operations most needs it. Config-load state is therefore not
+extra observability — it *is* availability for this service.
+
+This deliberately stops short of anything else. AMB-004 was ruled at G1
+as availability-only, with "metrics, per-language demand reporting, and
+structured logging… deferred to a separate BRD". So: no request counters,
+no per-language hit counts, no uptime figure, no locale list in the
+payload. Each of those would be a small, tempting, unapproved expansion.
 
 **Alternatives considered**:
 
-- *Nested metadata per locale* (display name, region, direction): none of it is required by
-  any criterion, and unused structure invites scope the business excluded.
-- *Supported list hard-coded separately from the text*: two sources that can disagree; a
-  language could be advertised with no text behind it.
+- **Always 200 if the process is up.** A pure liveness check. Rejected as
+  actively misleading under the D-8 failure mode — the one case where the
+  answer matters.
+- **Report the loaded locale count or list.** Genuinely useful to
+  operations, and out of scope under the AMB-004 ruling. If operations
+  wants it, that is a new BRD, not a quiet addition here.
 
 ---
 
-## D6 — Enforcing statelessness (GRT-006)
+## R-6 — Consequence of "exclusively from config/locales.yml"
 
-**Decision**: the request surface accepts a language and nothing else. No user identifier,
-header, cookie, or body field is read.
+**Decision**: No greeting text appears anywhere in source code, including
+as a last-resort default. If the file is missing, unparseable, or lacks
+the default language, the service does not serve invented text — it
+reports unhealthy via R-5 and `GET /greeting` fails loudly.
 
-**Rationale**: GRT-006 says the preference comes from the request and is never looked up.
-The cleanest enforcement is to give the service nothing to look up *with* — this is also
-why the design has no database (AMB-001 resolved to a stateless service). A test asserts
-that a user identifier supplied by a caller has no effect on the response.
+**Serves**: GRT-004, GRT-006. Implements the stated constraint.
+
+**Rationale**: This is the constraint's real consequence and it is worth
+stating plainly, because the instinct when writing the config loader is
+to add `except: return {"en": "Hello"}`. That single line would violate
+the exclusivity constraint and quietly break GRT-004: some deployments
+would serve config text and others code text, with nothing to reveal
+which. The design has no in-code greeting to fall back to, by intent.
+
+**Startup behaviour on bad config — ruled at G2**: whether a bad config
+should abort startup outright or start the process in an unhealthy state.
+Starting unhealthy was recommended — operations can then query `/health`
+and get a definite answer rather than facing a crash-looping container
+with the reason buried in logs. Either satisfies GRT-006.
+
+**Ruling (Tech Lead: Dana, 2026-08-12)**: the recommendation is adopted.
+The service starts in an unhealthy state and reports it via `/health`;
+it does not abort startup.
 
 ---
 
-## Open items for the G2 reviewer
+## Summary of unresolved items
 
-None blocking. Three judgement calls are flagged in plan.md ("Design Decisions Requiring
-G2 Attention"): D1, D2 and D3. D2 in particular is the one most likely to be overridden by
-an existing platform convention.
+| Item | Status |
+|---|---|
+| Technology choices | Given in the plan request; nothing to research |
+| AMB-005 mechanism (deferred to G2) | Resolved by R-1 |
+| Response shape | Resolved by R-2 |
+| Fallback semantics | Fixed by the G1 ruling; R-3 implements it |
+| Config load timing | Resolved by R-4 |
+| Health semantics | Resolved by R-5 |
+| Startup behaviour on bad config | **Ruled at G2** — start unhealthy, do not abort (R-6) |
 
-**Environment skew**: `.venv` is Python 3.13.2; plan and CI target 3.12. No design decision
-here depends on the difference, but the reviewer may want the venv rebuilt on 3.12.
+No NEEDS CLARIFICATION remains, and nothing is left awaiting an approver:
+the last open item (R-6) was ruled at G2 on 2026-08-12.

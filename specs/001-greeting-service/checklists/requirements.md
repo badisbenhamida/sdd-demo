@@ -2,9 +2,8 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-08-12
-**Last validated**: 2026-08-12 (after Ambiguity Log resolution)
+**Updated**: 2026-08-12 — after G1 approval (PO: Marco)
 **Feature**: [spec.md](../spec.md)
-**Source BRD**: BRD-2026-014
 
 ## Content Quality
 
@@ -31,45 +30,42 @@
 - [x] Feature meets measurable outcomes defined in Success Criteria
 - [x] No implementation details leak into specification
 
-## Notes
+## Traceability (project-specific, per constitution Article I & II)
 
-**All items pass as of 2026-08-12.** The four previously-blocked items cleared when the
-Ambiguity Log was resolved:
-
-- *Testable and unambiguous* — GRT-004 now has a concrete pass condition
-  (`UNSUPPORTED_LANGUAGE` error, no greeting) following AMB-002/AMB-007. GRT-006, GRT-007
-  and GRT-008 activated from reserved IDs with concrete conditions of their own.
-- *Success criteria measurable* — SC-004 now states a detectable outcome. AMB-006 resolved
-  as "no numeric targets", so the absence of latency/availability figures is a recorded
-  decision rather than an omission.
-- *All requirements have acceptance criteria* — 8 active criteria, all Confirmed.
-- *Measurable outcomes* — follows from SC-004.
-
-**Error-code names in criteria**: `UNSUPPORTED_LANGUAGE` and `MISSING_LANGUAGE` are
-interface-contract vocabulary the business chose to distinguish (AMB-009), not
-implementation detail. They are what a calling application observes.
-
-**On [NEEDS CLARIFICATION] markers**: none were used. Standard Spec Kit caps them at 3 and
-fills the rest with informed guesses; that conflicts with constitution Article III.1,
-which requires *every* gap resolved by a human. All 9 went to the Ambiguity Log instead
-and were decided individually. Two decisions reversed my proposals (AMB-002 fallback →
-error; AMB-009 shared → distinct error code), which is the reason the log exists.
+- [x] Every criterion carries a stable `GRT-###` ID
+- [x] Every criterion maps to a BRD requirement (traceability column)
+- [x] Every BRD requirement (BR-1..BR-4) is covered by at least one criterion
+- [x] No criterion exists that the BRD does not state or directly imply
+- [x] Criterion IDs are harvestable by `scripts/spec_drift.py` (verified: 6 active, 0 retired)
+- [x] Every criterion covered by a test declaring `Implements: GRT-###` — **6/6, `spec_drift.py` PASS**
 
 ## Gate status
 
-✅ **G1 MET** — approved by Badis Ben Hamida <badis@ben-hamida.com> on 2026-08-12
-(constitution Article III.1). Both conditions satisfied: every Ambiguity Log item resolved
-by a human, and the spec itself explicitly approved.
+- [x] **G1 — Spec approval**: approved by PO Marco on 2026-08-12, with all
+      seven Ambiguity Log items ruled on and recorded. Constitution
+      Art. III.1 satisfied.
+- [x] **G2 — Plan approval**: approved by Tech Lead Dana on 2026-08-12,
+      including the R-6 ruling on startup behaviour. Art. III.2 satisfied.
+- [ ] **G3 — Merge authority**: not started. Human review under branch
+      protection (Art. III.3).
 
-Approved with these two points on the record — flagged before sign-off, approved as-is:
+## Notes
 
-1. **AMB-003** — the launch language set (en, fr, de, es, ja) was supplied by the
-   approver, not derived from BRD-2026-014, which names no languages.
-2. **AMB-002** — choosing errors over fallback means every regional application must
-   handle `UNSUPPORTED_LANGUAGE`; an app that handles it poorly shows no greeting at all.
-
-The spec is now the contract and is no longer agent-modifiable without explicit direction
-(CLAUDE.md; constitution Article IV.3). G2 (plan approval) is the next gate.
-
-`spec_drift.py` reports 0/8 covered. That is expected until implementation adds tests
-declaring `Implements: GRT-###`, and is not a spec defect.
+- **"Testable and unambiguous" now passes.** At draft time GRT-002,
+  GRT-005, and GRT-006 were marked *Provisional* because the BRD implied
+  the criterion but left a parameter open. The G1 rulings on AMB-002,
+  AMB-003, and AMB-004 supplied those parameters, and the three criterion
+  statements were sharpened to encode them. All six criteria are now
+  *Firm*. The criterion IDs did not change.
+- **`spec_drift.py` now passes (6/6 covered).** It was red at 0/6 through
+  spec and plan, which was correct — the gate asserts that no criterion
+  ships without evidence. Every criterion now has an annotated test and a
+  commit citing its ID.
+- **Two rulings deliberately narrow scope rather than adding work**:
+  AMB-004 (availability check only, metrics deferred) and AMB-006
+  (no per-caller authentication, platform-layer concern). Both are
+  recorded in the spec's Out of Scope section so the boundary stays
+  citable if challenged later.
+- **One recorded follow-up for the business** (AMB-007): set an
+  availability target before this service becomes a hard dependency of a
+  customer-facing journey. Not a blocker for this release.
