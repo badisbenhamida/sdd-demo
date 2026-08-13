@@ -2,7 +2,7 @@
 
 **Feature**: `specs/001-greeting-service` | **Date**: 2026-08-12 | **Plan**: [plan.md](./plan.md)
 
-**Status**: Draft — supports a plan PENDING G2.
+**Status**: Approved — supports a plan that passed Gate G2 on 2026-08-12 (Tech Lead: Dana). Decisions R-1…R-6 are binding on implementation.
 
 Scope note: the technology choice itself was not researched. Python 3.12, FastAPI, and pytest were given as inputs, and all three are already pinned in `requirements.txt` and exercised by `.github/workflows/spec-drift.yml`. What needed resolving was *how* to use them against the G1 rulings. Each item below closes one unknown the Technical Context would otherwise have carried as `NEEDS CLARIFICATION`.
 

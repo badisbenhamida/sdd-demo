@@ -9,7 +9,7 @@ description: "Task list — HOUSE FORMAT, parsed by scripts/gh_sync.py"
 
 **Prerequisites**: [plan.md](./plan.md), [spec.md](./spec.md) (G1-approved), [research.md](./research.md), [data-model.md](./data-model.md), [contracts/](./contracts/)
 
-**Status**: Draft — **G2 pending** until a human tech lead approves the plan (constitution Art. III.2). Do not begin implementation, and do not run `gh_sync.py --apply`, before that approval.
+**Status**: **Approved — Gate G2 passed** 2026-08-12 by **Tech Lead: Dana** (constitution Art. III.2), together with [plan.md](./plan.md). Implementation may begin, and `gh_sync.py --apply` may run once a human has reviewed the dry-run batch (Art. III.4). Merging remains G3 and is a human decision under branch protection (Art. III.3).
 
 ## Format contract (exact — the parser is the authority)
 

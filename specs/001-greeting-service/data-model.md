@@ -2,7 +2,7 @@
 
 **Feature**: `specs/001-greeting-service` | **Date**: 2026-08-12 | **Plan**: [plan.md](./plan.md)
 
-**Status**: Draft — supports a plan PENDING G2.
+**Status**: Approved — supports a plan that passed Gate G2 on 2026-08-12 (Tech Lead: Dana). The field names below are the binding integration contract.
 
 There is no database (see [research.md](./research.md) R-6). "Data model" here means the shape of the one configuration file, the in-memory structures derived from it, and the load-state machine that drives health.
 

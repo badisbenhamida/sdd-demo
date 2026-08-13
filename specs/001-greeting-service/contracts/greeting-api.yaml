@@ -2,12 +2,14 @@
 # Contract — Global Greeting Service HTTP API
 #
 # Feature: specs/001-greeting-service   Date: 2026-08-12
-# Status: DRAFT — supports a plan PENDING G2 (constitution Art. III.2, IV.2).
+# Status: APPROVED — Gate G2 passed 2026-08-12 (Tech Lead: Dana),
+# constitution Art. III.2. This is the binding integration contract.
 #
 # Field names below are the G2 decision that the G1 ruling on AMB-005
-# explicitly delegated to the plan stage. Every operation and property is
-# annotated with the criterion it satisfies; nothing here is present without
-# a criterion behind it.
+# explicitly delegated to the plan stage, approved as proposed. Every
+# operation and property is annotated with the criterion it satisfies;
+# nothing here is present without a criterion behind it. Changing a field
+# name now affects every calling application.
 
 openapi: 3.1.0
 

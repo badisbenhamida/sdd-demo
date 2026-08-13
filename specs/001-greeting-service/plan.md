@@ -4,7 +4,23 @@
 
 **Input**: Feature specification from `specs/001-greeting-service/spec.md` (Approved at G1, 2026-08-12, PO: Marco)
 
-**Status**: **Draft — PENDING G2** (plan approval). Per constitution Art. III.2, a human (tech lead) approves this plan before implementation begins. Per Art. IV.2, this artifact is a draft until then.
+**Status**: **Approved — Gate G2 passed** 2026-08-12 by **Tech Lead: Dana**. Implementation may begin. Per Art. IV.2 this artifact is no longer a draft; per Art. III.3, merge authority (G3) is still ahead and remains a human decision under branch protection.
+
+---
+
+## Gate G2 — Plan approval record
+
+| Field | Value |
+|---|---|
+| Gate | G2 — Plan approval (constitution Art. III.2) |
+| Outcome | **Approved** |
+| Approver | Tech Lead: Dana |
+| Date | 2026-08-12 |
+| Scope approved | This plan, its Phase 0/1 artifacts (`research.md`, `data-model.md`, `contracts/greeting-api.yaml`, `quickstart.md`), and `tasks.md` |
+| Delegated decision settled | AMB-005 response field naming — `{message, locale, requested_locale, fallback}` is now the binding contract (see below) |
+| Criteria | Unchanged at ten, GRT-001…GRT-010. The plan added none and renumbered none. |
+
+**What this unblocks**: implementation of `tasks.md` (4 stories, 21 tasks) and, when the batch is reviewed, `gh_sync.py --apply`. **What it does not unblock**: merging. G3 requires human review under branch protection, and agents never merge (Art. III.3).
 
 ---
 
@@ -54,13 +70,13 @@ Ten criteria (GRT-001…GRT-010) are satisfied by three small modules: a config 
 | II.2 | `spec-drift` required check fails on uncovered criteria | PASS — gate is live and correctly red at 0/10 | PASS |
 | II.3 | Commits reference criterion IDs | PASS — enforced per task at implementation | PASS |
 | III.1 | G1 spec approval, Ambiguity Log resolved | PASS — approved 2026-08-12, PO: Marco, 8/8 resolved | PASS |
-| III.2 | G2 plan approval by tech lead | **PENDING — this document** | **PENDING — this document** |
+| III.2 | G2 plan approval by tech lead | PASS — approved 2026-08-12, Tech Lead: Dana | PASS |
 | III.3 | Human review under branch protection; agents never merge | PASS — no merge attempted | PASS |
 | IV.1 | Agents cite criterion IDs | PASS — every design decision below carries its IDs | PASS |
 | IV.2 | Agent artifacts labelled draft until approved | PASS — status line above | PASS |
 | IV.3 | Agents do not modify constitution, approved spec, issues, or workflows | PASS — this plan modifies none of them | PASS — no change proposed to `spec.md`, `scripts/`, or `.github/workflows/` |
 
-**Verdict**: no violations. The only open item is G2 itself, which is this document's purpose. **Complexity Tracking is therefore empty and omitted** — nothing here requires justification against a simpler alternative.
+**Verdict**: no violations, and G2 is now closed. **Complexity Tracking is therefore empty and omitted** — nothing here requires justification against a simpler alternative.
 
 One deliberate note on II.1: the plan does not mark it PASS on the promise of future work. It is PASS *by design* — the criterion-to-test map below assigns all ten criteria to a named test module, so no criterion can reach implementation without an owner. The gate itself stays red until those tests exist, which is correct.
 
@@ -146,7 +162,7 @@ AMB-005 was resolved at G1 as: JSON payload carrying the greeting text, the lang
 
 All four fields are always present, including when `locale` was omitted from the request. A stable key set is easier for callers to consume than a conditional one, and it means `fallback` is never absent-and-therefore-falsy.
 
-**This is the one place G2 approval carries a decision the spec did not already make.** If the tech lead prefers a narrower payload — `message` + `locale` only, with fallback inferred — say so at G2; GRT-006 would then need re-reading, since inference by comparison is arguably still "machine-readable".
+**This was the one place G2 approval carried a decision the spec did not already make, and it is now settled.** Approved as proposed at G2 on 2026-08-12 (Tech Lead: Dana): the four-field payload above is the binding integration contract. The narrower alternative — `message` + `locale` only, with fallback inferred from `locale != requested_locale` — was available and not taken, so `fallback` stays an explicit boolean and callers need no comparison logic. Changing these names now is a contract change affecting every calling application, not a refactor.
 
 ---
 
@@ -163,7 +179,7 @@ All four fields are always present, including when `locale` was omitted from the
 
 ## Phase 2 — Tasks
 
-**Not produced by this command.** `/speckit.tasks` generates `tasks.md` in the house format (`- [ ] T<s>.<n> <title> (GRT-###) [P1..P4]`) parsed by `scripts/gh_sync.py`. Do not run it until G2 is granted.
+**Not produced by this command**, but generated and approved under the same G2 ruling. [tasks.md](./tasks.md) carries 4 stories and 21 tasks in the house format (`- [ ] T<s>.<n> <title> (GRT-###) [P1..P4]`) parsed by `scripts/gh_sync.py`. Implementation may now proceed against it.
 
 ---
 

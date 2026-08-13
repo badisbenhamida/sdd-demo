@@ -2,7 +2,7 @@
 
 **Feature**: `specs/001-greeting-service` | **Date**: 2026-08-12 | **Plan**: [plan.md](./plan.md)
 
-**Status**: Draft — supports a plan PENDING G2. **Nothing below runs yet**: `src/`, `tests/`, and `config/locales.yml` are created during implementation. This is the acceptance script the implementation must satisfy, written before the code exists (CLAUDE.md: test first).
+**Status**: Approved — supports a plan that passed Gate G2 on 2026-08-12 (Tech Lead: Dana). **Nothing below runs yet**: `src/`, `tests/`, and `config/locales.yml` are created during implementation. This is the acceptance script the implementation must satisfy, written before the code exists (CLAUDE.md: test first).
 
 ---
 
