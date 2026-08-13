@@ -64,3 +64,21 @@ def test_unsupported_language_response_is_identical_on_repeat():
     ]
 
     assert bodies[0] == bodies[1] == bodies[2]
+
+
+# Implements: GRT-002
+def test_no_language_preference_returns_the_default_language():
+    """GRT-002: no preference supplied -> the configured default, English.
+
+    `fallback` stays False here. Asking for nothing is not a failed
+    request: the caller expressed no preference, so serving the default
+    is the correct answer rather than a substitution for one.
+    """
+    response = client.get("/greeting")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["message"] == LOCALES[DEFAULT_LANGUAGE]
+    assert body["language"] == DEFAULT_LANGUAGE
+    assert body["requested_language"] is None
+    assert body["fallback"] is False
