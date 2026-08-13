@@ -5,6 +5,7 @@ code (constitution Art. II.1). scripts/spec_drift.py harvests them, and a
 criterion with no annotation here fails the required check on main.
 """
 
+import pytest
 from fastapi.testclient import TestClient
 
 from src.config import DEFAULT_LANGUAGE
@@ -122,3 +123,36 @@ def test_same_language_yields_identical_text_for_every_caller():
 
     assert len({body["message"] for body in bodies}) == 1
     assert bodies[0] == bodies[1] == bodies[2]
+
+
+# Implements: GRT-001
+@pytest.mark.parametrize("language", sorted(LOCALES))
+def test_supported_language_returns_that_language(language):
+    """GRT-001: a supported language preference yields that language's text.
+
+    Parameterised over whatever the table currently carries rather than
+    a fixed list. Under the AMB-001 ruling the supported set is
+    business-owned configuration, so this test grows with the launch set
+    instead of needing an edit each time it changes.
+    """
+    response = client.get("/greeting", params={"lang": language})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["message"] == LOCALES[language]
+    assert body["language"] == language
+    assert body["requested_language"] == language
+    assert body["fallback"] is False
+
+
+# Implements: GRT-001
+def test_the_configured_table_carries_more_than_the_default():
+    """GRT-001 is only meaningfully exercised with a real choice of language.
+
+    data-model.md requires the acceptance tests to exercise the default
+    plus at least two further languages. Without this, the parameterised
+    test above could silently shrink to a single default-language case
+    and still pass, covering GRT-001 in name only.
+    """
+    assert len(LOCALES) >= 3, "config/locales.yml must carry en plus two more"
+    assert DEFAULT_LANGUAGE in LOCALES
