@@ -106,3 +106,59 @@ def test_every_unsupported_shape_falls_back_rather_than_raising():
     for requested in ("pt-BR", "fr", "zz-ZZ", "not-a-locale", ""):
         result = resolve(synthetic, requested)
         assert result.message == "Hello!", f"{requested!r} should fall back"
+
+
+# Implements: GRT-006
+#
+# GRT-006: "If the Greeting Service substitutes the default language for an
+# unsupported one, then the response shall indicate in machine-readable form
+# that a fallback occurred and which language was served, distinguishable
+# without inspecting the greeting text."
+#
+# "Without inspecting the greeting text" is the operative clause: a caller must
+# never have to parse or compare `message` to learn that a substitution
+# happened. That is why `fallback` is an explicit boolean rather than something
+# inferred from locale != requested_locale (settled at G2).
+
+
+def test_a_substitution_is_flagged_machine_readably(client):
+    body = client.get("/greeting", params={"locale": UNSUPPORTED}).json()
+
+    assert body["fallback"] is True
+    assert isinstance(body["fallback"], bool)
+
+
+def test_the_response_names_both_the_requested_and_the_served_language(client,
+                                                                      catalog):
+    """A caller needs both halves to log the gap usefully."""
+    body = client.get("/greeting", params={"locale": UNSUPPORTED}).json()
+
+    assert body["requested_locale"] == UNSUPPORTED
+    assert body["locale"] == catalog.display_names[catalog.default]
+
+
+def test_the_flag_is_readable_without_touching_the_greeting_text(client):
+    """Drop `message` entirely and the substitution is still detectable."""
+    body = client.get("/greeting", params={"locale": UNSUPPORTED}).json()
+    without_text = {k: v for k, v in body.items() if k != "message"}
+
+    assert without_text["fallback"] is True
+    assert without_text["locale"]
+    assert without_text["requested_locale"] == UNSUPPORTED
+
+
+def test_the_flag_distinguishes_a_fallback_from_an_exact_hit(client):
+    """The whole point: one field separates the two outcomes."""
+    hit = client.get("/greeting", params={"locale": "fr-FR"}).json()
+    missed = client.get("/greeting", params={"locale": UNSUPPORTED}).json()
+
+    assert hit["fallback"] is False
+    assert missed["fallback"] is True
+
+
+def test_the_indicator_is_always_present_never_merely_absent(client):
+    """A stable key set: `fallback` is never absent-and-therefore-falsy."""
+    for params in ({"locale": "fr-FR"}, {"locale": UNSUPPORTED}, {}):
+        body = client.get("/greeting", params=params).json()
+
+        assert set(body) == {"message", "locale", "requested_locale", "fallback"}
