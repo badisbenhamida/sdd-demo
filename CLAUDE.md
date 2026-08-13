@@ -10,6 +10,11 @@
   or any constitution file unless the user explicitly directs it.
 - If completing a task would require deviating from the approved spec,
   stop and ask before proceeding.
+- Task checkboxes in tasks.md are never hand-marked — not even when a
+  skill's "done when" step says to mark them [X]. Completion is evidenced
+  by spec_drift coverage plus commits citing criterion IDs, and issue
+  state comes from gh_sync.py --update. Hand-marking is the one thing
+  constitution Art. III.4 rules out by name.
 
 ## Traceability
 - Every acceptance criterion carries a stable ID (GRT-###). Task
@@ -19,11 +24,36 @@
   ("# Implements: GRT-###"), and every commit message.
 - Test first: the annotated acceptance test is written before or
   alongside the implementation it covers.
+- spec_drift.py harvests criterion IDs from markdown TABLE CELLS: the ID
+  stands alone between two pipes (`| GRT-001 | ... |`). An ID in a bullet
+  list, in prose, or sharing a cell with other text is not harvested. A
+  spec yielding zero criteria fails the gate rather than passing it.
+- Retirement is line-scoped: `[RETIRED]` and the ID it retires must sit
+  on the SAME physical line, normally the same table row. A marker on the
+  line above or below does not register, and the criterion stays active
+  — so the gate keeps demanding a test for it.
+
+## Format contracts (tooling parses these; deviation is silent)
+- tasks.md is parsed by scripts/gh_sync.py:
+  - story: `## Story S<n> — <title>`, then `Implements: GRT-###, ...`
+    on its own line (em dash or plain hyphen both parse).
+  - task: `- [ ] T<s>.<n> <title> (GRT-###) [P1..P4]` — the line MUST end
+    with the priority bracket.
+  - a task may cite only criteria its story implements; --apply refuses
+    otherwise, because --update reads the story's Implements line.
+- The Spec Kit tasks template documents a different shape
+  (`- [ ] T001 [P] [US1] ...`). The house format wins. The project
+  override lives at .specify/templates/tasks-template.md — if a template
+  refresh reverts it, restore it: a tasks.md in Spec Kit's default form
+  parses to zero tasks.
 
 ## Definition of done (any implementation task)
 1. .venv/bin/python -m pytest tests/ -q passes.
-2. .venv/bin/python scripts/spec_drift.py no longer lists this task's
-   criteria as uncovered.
+2. .venv/bin/python scripts/spec_drift.py --criterion GRT-### exits 0
+   for each of this task's criteria. A full run still exits non-zero
+   while OTHER criteria remain uncovered — that is the burndown working,
+   not a failure of this task. Judge this task by the --criterion run,
+   and the feature by the full run.
 3. Work is committed with the criterion ID in the message; the working
    tree is left clean. Commit at the end of every unit of work — never
    leave a session's artifacts uncommitted.

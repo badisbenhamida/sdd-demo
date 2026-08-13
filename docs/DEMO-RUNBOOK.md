@@ -112,13 +112,23 @@ artifacts (checklists/, contracts/) are normal.
 
 ### Act 4 — Gate G1 (4 min)
 Read the ACTUAL log on screen and rule on every line it contains — the
-generated log governs, not this script. The block below is an EXAMPLE
-of ruling style from a prior run; adapt items, add rulings for
-anything new, drop items that didn't appear:
+generated log governs, not this script.
+
+**The block below is ONE defensible ruling set, not the expected
+outcome.** It is deliberately not the set the agent will propose: on the
+unsupported-language item the agent typically recommends falling back to
+the default and flagging it, and the block below rules the other way.
+Both are defensible; picking either is a real decision, which is the
+point of a human gate. Adapt items, add rulings for anything new, drop
+items that didn't appear — and if you rule WITH the agent's proposal
+instead, expect HTTP 200 with a fallback flag downstream rather than the
+400 written here. Acts 7 and 8 work either way; only the response shape
+on screen changes.
 ```
 As the Product Owner I'm resolving the ambiguity log in full:
 - unsupported locale → explicit HTTP 400, machine-readable code
   UNSUPPORTED_LOCALE, include the supported-locale list. No silent fallback.
+  (Ruling AGAINST the agent's likely proposal — say so out loud.)
 - launch locales → config/locales.yml decides; ship en-US, fr-FR,
   de-DE, ja-JP; en-US is the default when none is requested.
 - interface → HTTP API; auth and network policy are platform-layer,
@@ -128,11 +138,20 @@ As the Product Owner I'm resolving the ambiguity log in full:
 - response format → JSON with fields "message" and "locale".
 Resolve any items beyond these on their merits; out-of-scope is a valid
 ruling but stays recorded. Update the spec, record the resolver
-(PO: <name>), set every status to Resolved, mark the spec Approved —
+(PO: Marco), set every status to Resolved, mark the spec Approved —
 Gate G1, leave nothing PENDING, and commit:
 "spec: G1 approved, ambiguity log resolved (PO)".
 ```
-Verify: `grep -i pending specs/**/spec.md` → empty.
+Names come from the persona cast in README.md — **Marco** is the Product
+Owner who owns G1, **Dana** the Tech Lead who owns G2. Substitute your
+own name only if you are presenting as yourself rather than the cast; the
+value lands in a permanent governance record, so decide before pasting.
+
+Verify: `grep -n 'PENDING HUMAN APPROVAL' specs/**/spec.md` → empty.
+Match the full status token, case-sensitively. A bare `grep -i pending`
+also matches ordinary English — "depending" contains "pending" — so it
+fails on prose that resolves nothing, and a check that forces cosmetic
+edits is a check people learn to ignore.
 
 ### Act 5 — Plan and tasks, Gate G2 (5 min)
 ```
@@ -150,8 +169,13 @@ carries the criterion IDs it implements. Commit when done:
 "tasks: G2 pending".
 ```
 Review; adjust one grouping (G2 is real); then:
-`Approved — Gate G2. Commit: "plan+tasks: G2 approved".`
+`Approved — Gate G2 (Tech Lead: Dana). Commit: "plan+tasks: G2 approved".`
 Give the generated `contracts/` ten seconds of screen time.
+
+If the plan left a decision explicitly to the G2 approver — the research
+notes flag these — approving the plan adopts its recommendation. Name the
+one you are adopting rather than letting it pass silently; that is what
+makes G2 a gate rather than a formality.
 
 ### Act 6 — Issues appear in GitHub (4 min)
 ```bash
