@@ -160,6 +160,13 @@ Give the generated `contracts/` ten seconds of screen time.
 > "A human reviews the batch before anything touches the tracker. And
 > if tasks.md drifted from the format contract, the tool fails loudly
 > instead of syncing nothing."
+
+The dry run also reports, by line number, any checkbox line under a story
+that misses the task contract, and any task citing a criterion its story
+does not implement. `--apply` refuses while either is outstanding. If
+that fires on screen, it is worth ten seconds:
+> "It didn't sync a partial file quietly. Silent truncation is how a
+> tracker ends up claiming coverage nobody has."
 ```bash
 .venv/bin/python scripts/gh_sync.py --apply
 ```
@@ -267,6 +274,9 @@ closing, which is driven by annotated tests, not commits.
 | Actions runner delayed | Run both gates locally on screen; show a prior green run. |
 | Claude Code stalls | `git checkout reference` and walk the finished artifacts — all nine acts still narrate. |
 | gh_sync parses 0 | It fails loudly with the contract printed. Have Claude Code reformat tasks.md; 60 seconds, and the failure message is itself a governance talking point. |
+| gh_sync warns on some lines | Partial deviations are reported with line numbers and block `--apply`. Fix the named lines, or narrate it as the gate refusing to sync a file it only partly understands. |
+| Drift gate reports 0 criteria | The spec's criteria are not in a markdown table. Gate 1 fails on this deliberately — an unreadable spec used to pass. Reformat the criteria table. |
+| Constitution gate (Gate 0) red | `.specify/memory/constitution.md` drifted from `memory/`. Re-mirror **from** memory/ — never the reverse (Art. IV.3). |
 | Wi-Fi dies | Acts 1–5 and 7 are fully local. Only 6 and 8 need the network. |
 
 ## Three sentences that carry the demo

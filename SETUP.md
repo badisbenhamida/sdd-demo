@@ -92,12 +92,59 @@ python scripts/gh_sync.py --apply    # creates 'story' Issues with task checklis
 python scripts/gh_sync.py --update   # post-merge: comments evidence
                                      # (criteria, covering tests, commits)
                                      # and closes fully-covered issues
+python scripts/gh_sync.py --feature specs/<dir>   # pick the feature explicitly
 ```
 One-way by design: issues derive from the spec; issue state derives
 from evidence. Editing acceptance criteria in an issue changes nothing
 — the spec in the repo is the contract (constitution Art. I.3).
 
-## 5. Sandbox hygiene
+Which `tasks.md` gets synced: `--feature` wins, else the pointer in
+`.specify/feature.json` (machine-local and gitignored, so CI never sees
+it), else the single `specs/*/tasks.md` when exactly one exists. With two
+or more features and no pointer, the tool stops and asks for `--feature`
+rather than guessing.
+
+**The sync refuses to run on a file it only partly understands.** A
+checkbox line under a story that does not match the task contract is
+reported with its line number, and a task citing a criterion its story
+does not implement is reported too — `--apply` exits 1 until both are
+clean. Previously such lines were skipped in silence, producing Issues
+quietly short of the tasks they claimed to carry. Story headings accept
+either an em dash or a plain hyphen.
+
+## 5. The gates, and running them one at a time
+
+CI runs three, in this order (`.github/workflows/spec-drift.yml`):
+
+```bash
+python scripts/constitution_check.py   # Gate 0 — .specify mirror == memory/
+python scripts/spec_drift.py           # Gate 1 — criterion ⇄ test traceability
+python -m pytest tests/ -q             # Gate 2 — the tests themselves
+```
+
+**Gate 0** exists because the mirror is agent-writable while
+`memory/constitution.md` is not. It compares each article's heading and
+body (ignoring heading level and the template scaffolding around them)
+and fails on divergence in either direction. No `.specify/` present — as
+on `demo-start` — is a pass, not a failure: the mirror is optional
+tooling, the source is not.
+
+**Gate 1** harvests criterion IDs from markdown **table cells**: the ID
+must stand alone between two pipes (`| GRT-001 | … |`). An ID in a bullet
+list or sharing a cell with other text is not harvested, and a spec that
+yields *zero* criteria now fails loudly — an empty criteria set would
+otherwise satisfy every other check and turn the required status check
+green without verifying anything.
+
+During incremental work the full Gate 1 run exits non-zero while any
+criterion is uncovered, which makes it useless as a per-task check. Ask
+the narrower question instead:
+
+```bash
+python scripts/spec_drift.py --criterion GRT-005   # exits 0 if that one is covered
+```
+
+## 6. Sandbox hygiene
 
 Use a throwaway repo for demos so `--apply` runs are consequence-free.
 Re-runs of `--apply` create duplicate issues (no dedup by design —
