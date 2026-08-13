@@ -37,7 +37,7 @@
 - [x] Every BRD requirement (BR-1..BR-4) is covered by at least one criterion
 - [x] No criterion exists that the BRD does not state or directly imply
 - [x] Criterion IDs are harvestable by `scripts/spec_drift.py` (verified: 6 active, 0 retired)
-- [ ] Every criterion covered by a test declaring `Implements: GRT-###` — **not yet; implementation has not started**
+- [x] Every criterion covered by a test declaring `Implements: GRT-###` — **6/6, `spec_drift.py` PASS**
 
 ## Gate status
 
@@ -57,10 +57,10 @@
   AMB-003, and AMB-004 supplied those parameters, and the three criterion
   statements were sharpened to encode them. All six criteria are now
   *Firm*. The criterion IDs did not change.
-- **`spec_drift.py` still fails (0/6 covered).** Correct before
-  implementation — the gate asserts that no criterion ships without
-  evidence. It turns green as `Implements: GRT-###` tests land, which is
-  a G2/implementation concern, not a spec defect.
+- **`spec_drift.py` now passes (6/6 covered).** It was red at 0/6 through
+  spec and plan, which was correct — the gate asserts that no criterion
+  ships without evidence. Every criterion now has an annotated test and a
+  commit citing its ID.
 - **Two rulings deliberately narrow scope rather than adding work**:
   AMB-004 (availability check only, metrics deferred) and AMB-006
   (no per-caller authentication, platform-layer concern). Both are
